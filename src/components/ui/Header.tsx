@@ -7,17 +7,17 @@ export default function Header() {
         {/* Logo */}
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-3">
-            <span className="text-lg font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-amber-400">EcoPost</span>
+            <span className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-amber-400">EcoPost</span>
           </Link>
         </div>
 
         {/* Nav links (hidden on small screens) */}
         <nav className="hidden gap-6 text-sm text-zinc-300 md:flex md:flex-1 md:justify-center">
-          <Link href="#" className="hover:text-white">Funcionalidades</Link>
-          <Link href="#" className="hover:text-white">Precios</Link>
-          <Link href="#" className="hover:text-white">Nosotros</Link>
+          <Link href="/funcionalidades" className="hover:text-white">Funcionalidades</Link>
+          <Link href="/precios" className="hover:text-white">Precios</Link>
+          <Link href="/nosotros" className="hover:text-white">Nosotros</Link>
           <Link href="#" className="hover:text-white">Casos de Éxito</Link>
-          <Link href="#" className="hover:text-white">Contacto</Link>
+          <Link href="/contacto" className="hover:text-white">Contacto</Link>
         </nav>
 
         {/* CTAs */}

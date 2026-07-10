@@ -78,7 +78,7 @@ export default function Hero() {
                   </div>
 
                   <div className="w-36 flex flex-col items-stretch justify-between">
-                    <button className="rounded-full bg-orange-500 px-4 py-3 font-semibold text-white">COBRAR $595</button>
+                    <button className="rounded-full bg-orange-500 px-4 py-3 font-semibold text-white">COBRAR COP $595</button>
                     <div className="mt-4 text-xs text-zinc-500">Sistema POS en tiempo real</div>
                   </div>
                 </div>
