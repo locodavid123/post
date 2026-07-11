@@ -23,78 +23,42 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-zinc-950 text-zinc-50 font-sans">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-zinc-800 bg-zinc-900/50 backdrop-blur-md flex flex-col justify-between p-6">
-        <div className="flex flex-col gap-8">
-          {/* Logo */}
-          <div className="flex items-center gap-2 px-2">
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans">
+      <header className="border-b border-zinc-800 bg-zinc-900/70 px-6 py-4 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <span className="text-2xl font-bold bg-linear-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
               EcoPost
             </span>
-            <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30 font-semibold uppercase tracking-wider">
+            <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-400">
               Admin
             </span>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex flex-col gap-2">
-            <SidebarLink href="/admin">
-              <span>📊</span> Dashboard
-            </SidebarLink>
-            <SidebarLink href="/admin/negocios">
-              <span>🏢</span> Negocios
-            </SidebarLink>
-            <SidebarLink href="/admin/usuarios">
-              <span>👥</span> Usuarios
-            </SidebarLink>
-            <SidebarLink href="/admin/reportes">
-              <span>📈</span> Reportes
-            </SidebarLink>
-            <SidebarLink href="/admin/facturacion">
-              <span>🧾</span> Facturación
-            </SidebarLink>
-            <SidebarLink href="/admin/configuracion">
-              <span>🛡️</span> Administración
-            </SidebarLink>
+          <nav className="flex flex-wrap items-center gap-2">
+            <SidebarLink href="/admin/negocios">Negocios</SidebarLink>
+            <SidebarLink href="/admin/usuarios">Usuarios</SidebarLink>
+            <SidebarLink href="/admin/reportes">Reportes</SidebarLink>
+            <SidebarLink href="/admin/facturacion">Facturación</SidebarLink>
+            <SidebarLink href="/admin/configuracion">Administración</SidebarLink>
           </nav>
-        </div>
 
-        {/* Footer/Logout */}
-        <div className="flex flex-col gap-4">
-          <div className="border-t border-zinc-800 pt-4 px-2 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center font-bold text-red-400">
-              S
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">
+              <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
+              <span className="text-zinc-300">SuperAdmin</span>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-white">SuperAdmin</p>
-              <p className="text-[10px] text-zinc-500">Soporte Técnico</p>
-            </div>
+            <Link
+              href="/login"
+              className="rounded-full border border-red-500/30 px-3 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/10"
+            >
+              Cerrar sesión
+            </Link>
           </div>
-          <Link
-            href="/login"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all text-sm font-medium"
-          >
-            <span>🚪</span> Cerrar Sesión
-          </Link>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Header */}
-        <header className="h-16 border-b border-zinc-900 bg-zinc-900/30 px-8 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-zinc-100">Consola de Administración</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-xs bg-red-500/10 text-red-400 px-3 py-1.5 rounded-full border border-red-500/20 font-medium">
-              ⚙️ Entorno Global
-            </span>
-          </div>
-        </header>
-
-        {/* Dynamic Page Content */}
-        <main className="flex-1 p-8 overflow-y-auto">{children}</main>
-      </div>
+      <main className="mx-auto w-full max-w-7xl p-8">{children}</main>
     </div>
   );
 }
