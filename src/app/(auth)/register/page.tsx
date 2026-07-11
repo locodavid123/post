@@ -2,9 +2,58 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "@/hooks";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const { values, handleChange, resetForm } = useForm({
+    businessName: "",
+    managerName: "",
+    phone: "",
+    email: "",
+    password: "",
+    promoCode: "",
+    acceptTerms: false,
+  });
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!values.acceptTerms) {
+      setStatus("Debes aceptar los términos para continuar.");
+      return;
+    }
+
+    setLoading(true);
+    setStatus(null);
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        setStatus(result.message || "Error al crear la cuenta.");
+      } else {
+        setStatus("Cuenta creada correctamente. Redirigiendo al login...");
+        resetForm();
+        setTimeout(() => {
+          router.push("/login");
+        }, 1200);
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Error de red.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#08101d] px-6 py-10 text-white">
@@ -83,22 +132,30 @@ export default function RegisterPage() {
               <h2 className="text-3xl font-bold text-white">Crear cuenta gratis</h2>
               <p className="mt-2 text-sm text-zinc-400">Comienza hoy, sin tarjeta de crédito</p>
 
-              <form className="mt-8 grid gap-4">
+              <form onSubmit={handleSubmit} className="mt-8 grid gap-4">
                 <label className="flex flex-col gap-2 text-sm text-zinc-400">
                   Nombre del negocio
                   <input
+                    name="businessName"
+                    value={values.businessName}
+                    onChange={handleChange}
                     type="text"
                     placeholder="Nombre del negocio"
                     className="rounded-2xl border border-zinc-800 bg-[#0f1720] px-4 py-3 text-white outline-none focus:border-orange-500"
+                    required
                   />
                 </label>
 
                 <label className="flex flex-col gap-2 text-sm text-zinc-400">
                   Nombre y apellido del encargado
                   <input
+                    name="managerName"
+                    value={values.managerName}
+                    onChange={handleChange}
                     type="text"
                     placeholder="Nombre y apellido"
                     className="rounded-2xl border border-zinc-800 bg-[#0f1720] px-4 py-3 text-white outline-none focus:border-orange-500"
+                    required
                   />
                 </label>
 
@@ -107,6 +164,9 @@ export default function RegisterPage() {
                   <div className="flex overflow-hidden rounded-2xl border border-zinc-800 bg-[#0f1720]">
                     <span className="inline-flex items-center px-4 text-sm text-zinc-300">+57</span>
                     <input
+                      name="phone"
+                      value={values.phone}
+                      onChange={handleChange}
                       type="tel"
                       placeholder="Ejemplo: (123) 123 4567"
                       className="w-full bg-transparent px-4 py-3 text-white outline-none"
@@ -117,9 +177,13 @@ export default function RegisterPage() {
                 <label className="flex flex-col gap-2 text-sm text-zinc-400">
                   E-mail de contacto
                   <input
+                    name="email"
+                    value={values.email}
+                    onChange={handleChange}
                     type="email"
                     placeholder="Ejemplo: nombre@gmail.com"
                     className="rounded-2xl border border-zinc-800 bg-[#0f1720] px-4 py-3 text-white outline-none focus:border-orange-500"
+                    required
                   />
                 </label>
 
@@ -127,9 +191,13 @@ export default function RegisterPage() {
                   Contraseña para tu cuenta
                   <div className="relative rounded-2xl border border-zinc-800 bg-[#0f1720] focus-within:border-orange-500">
                     <input
+                      name="password"
+                      value={values.password}
+                      onChange={handleChange}
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       className="w-full rounded-2xl bg-transparent px-4 py-3 pr-14 text-white outline-none"
+                      required
                     />
                     <button
                       type="button"
@@ -147,6 +215,9 @@ export default function RegisterPage() {
                 <label className="flex flex-col gap-2 text-sm text-zinc-400">
                   Código promocional <span className="text-xs text-zinc-500">(opcional)</span>
                   <input
+                    name="promoCode"
+                    value={values.promoCode}
+                    onChange={handleChange}
                     type="text"
                     placeholder="Código promocional"
                     className="rounded-2xl border border-zinc-800 bg-[#0f1720] px-4 py-3 text-white outline-none focus:border-orange-500"
@@ -154,7 +225,13 @@ export default function RegisterPage() {
                 </label>
 
                 <label className="flex items-start gap-3 text-sm text-zinc-400">
-                  <input type="checkbox" className="mt-1 h-4 w-4 rounded border-zinc-700 bg-zinc-950 text-orange-500 focus:ring-orange-500" />
+                  <input
+                    name="acceptTerms"
+                    type="checkbox"
+                    checked={values.acceptTerms}
+                    onChange={handleChange}
+                    className="mt-1 h-4 w-4 rounded border-zinc-700 bg-zinc-950 text-orange-500 focus:ring-orange-500"
+                  />
                   <span>
                     Acepto las <Link href="#" className="font-semibold text-orange-400 hover:text-orange-300">Condiciones del Servicio</Link> y las{' '}
                     <Link href="#" className="font-semibold text-orange-400 hover:text-orange-300">Políticas de Privacidad</Link> de EcoPost.
@@ -162,12 +239,14 @@ export default function RegisterPage() {
                 </label>
 
                 <button
-                  type="button"
-                  className="mt-2 rounded-3xl bg-orange-500 px-4 py-4 text-sm font-semibold text-white transition hover:bg-orange-600"
+                  type="submit"
+                  disabled={loading}
+                  className="mt-2 rounded-3xl bg-orange-500 px-4 py-4 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Crear cuenta gratis
+                  {loading ? "Creando cuenta…" : "Crear cuenta gratis"}
                 </button>
               </form>
+              {status && <p className="mt-4 text-sm text-zinc-300">{status}</p>}
 
               <div className="mt-6 rounded-3xl border border-zinc-800 bg-[#0b1320] p-5 text-sm text-zinc-400">
                 <p className="text-center">¿Ya tienes cuenta?{' '}
