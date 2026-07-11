@@ -35,7 +35,7 @@ export default function ReportesPage() {
               <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                 <div
                   style={{ height: `${height}%` }}
-                  className="w-full bg-gradient-to-t from-orange-600 to-orange-400 rounded-t-lg hover:from-orange-500 hover:to-orange-350 transition-all cursor-pointer relative group"
+                  className="w-full bg-linear-to-t from-orange-600 to-orange-400 rounded-t-lg hover:from-orange-500 hover:to-orange-350 transition-all cursor-pointer relative group"
                 >
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-950 text-zinc-200 border border-zinc-800 text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     ${height * 120}
@@ -60,7 +60,7 @@ export default function ReportesPage() {
               <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                 <div
                   style={{ height: `${height}%` }}
-                  className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-lg hover:from-emerald-500 hover:to-emerald-350 transition-all cursor-pointer relative group"
+                  className="w-full bg-linear-to-t from-emerald-600 to-emerald-400 rounded-t-lg hover:from-emerald-500 hover:to-emerald-350 transition-all cursor-pointer relative group"
                 >
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-950 text-zinc-200 border border-zinc-800 text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {height} locales

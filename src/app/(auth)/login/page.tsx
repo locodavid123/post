@@ -9,7 +9,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-[#07111f] px-6 py-10 text-white">
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.07fr_1fr] xl:grid-cols-[1.1fr_1fr]">
-        <section className="rounded-[32px] border border-zinc-800 bg-[#101b2f]/80 p-10 shadow-[0_40px_120px_rgba(15,23,42,0.35)] backdrop-blur-xl">
+        <section className="rounded-4xl border border-zinc-800 bg-[#101b2f]/80 p-10 shadow-[0_40px_120px_rgba(15,23,42,0.35)] backdrop-blur-xl">
           <div className="mb-10 flex items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-white">EcoPost</h1>
@@ -71,7 +71,7 @@ export default function LoginPage() {
           </p>
         </section>
 
-        <section className="relative overflow-hidden rounded-[32px] border border-zinc-800 bg-[#111b2f] p-10 text-white shadow-[0_40px_120px_rgba(15,23,42,0.25)]">
+        <section className="relative overflow-hidden rounded-4xl border border-zinc-800 bg-[#111b2f] p-10 text-white shadow-[0_40px_120px_rgba(15,23,42,0.25)]">
           <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-orange-500/10 blur-3xl" />
           <div className="absolute left-0 bottom-0 h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
               Comparte tu código con otros negocios gastronómicos que aún no usan EcoPost y gana beneficios exclusivos.
             </p>
 
-            <div className="rounded-[24px] border border-zinc-800 bg-[#0f1720]/70 p-5">
+            <div className="rounded-3xl border border-zinc-800 bg-[#0f1720]/70 p-5">
               <div className="mb-4 flex items-center justify-between rounded-2xl bg-zinc-900/70 px-4 py-3 text-sm text-zinc-300">
                 <span>09:28</span>
                 <span className="rounded-full bg-orange-500/20 px-3 py-1 text-orange-300">PRO</span>

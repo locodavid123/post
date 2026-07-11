@@ -29,7 +29,7 @@ export default function ClientLayout({
         <div className="flex flex-col gap-8">
           {/* Logo */}
           <div className="flex items-center gap-2 px-2">
-            <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold bg-linear-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
               EcoPost
             </span>
             <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/30 font-semibold uppercase tracking-wider">

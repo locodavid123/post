@@ -33,7 +33,7 @@ export default function ContactoPage() {
         <form onSubmit={handleSubmit} className="mt-8 grid gap-4">
           <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Nombre" className="rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 text-white" required />
           <input value={email} onChange={(e)=>setEmail(e.target.value)} type="email" placeholder="Correo electrónico" className="rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 text-white" required />
-          <textarea value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="Mensaje" className="rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 text-white min-h-[120px]" required />
+          <textarea value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="Mensaje" className="rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 text-white min-h-30" required />
           <div className="flex items-center gap-4">
             <button className="w-max rounded-full bg-orange-500 px-6 py-3 font-semibold text-white" type="submit">Enviar</button>
             {status && <p className="text-sm text-zinc-300">{status}</p>}

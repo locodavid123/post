@@ -40,8 +40,8 @@ export default function Hero() {
 
           {/* Right: Mockup card */}
           <div className="flex justify-center lg:justify-end">
-            <div className="relative w-[520px] max-w-full">
-              <div className="rounded-3xl border border-zinc-800 bg-gradient-to-b from-zinc-900 via-zinc-950 to-zinc-900 p-6 shadow-2xl">
+            <div className="relative w-130 max-w-full">
+              <div className="rounded-3xl border border-zinc-800 bg-linear-to-b from-zinc-900 via-zinc-950 to-zinc-900 p-6 shadow-2xl">
                 <div className="flex items-center justify-between mb-4">
                   <div className="h-3 w-28 rounded-full bg-zinc-800/60" />
                   <div className="flex gap-2">

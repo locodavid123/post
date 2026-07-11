@@ -7,7 +7,7 @@ export default function Header() {
         {/* Logo */}
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-3">
-            <span className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-amber-400">EcoPost</span>
+            <span className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-orange-400 to-amber-400">EcoPost</span>
           </Link>
         </div>
 
