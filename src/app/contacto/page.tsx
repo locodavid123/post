@@ -19,7 +19,7 @@ export default function ContactoPage() {
       });
       if (res.ok) setStatus("Mensaje enviado. Te contactamos pronto.");
       else setStatus("Error al enviar. Intenta nuevamente.");
-    } catch (err) {
+    } catch {
       setStatus("Error de red. Intenta más tarde.");
     }
   }

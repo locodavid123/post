@@ -44,8 +44,8 @@ export default function JukeboxPage() {
 
           {/* Track Details */}
           <div className="flex flex-col gap-1">
-            <h3 className="text-xl font-bold text-white">Sweet Child O' Mine</h3>
-            <p className="text-sm text-zinc-400">Guns N' Roses</p>
+            <h3 className="text-xl font-bold text-white">Sweet Child O&apos; Mine</h3>
+            <p className="text-sm text-zinc-400">Guns N&apos; Roses</p>
             <p className="text-xs text-zinc-500 mt-2">Pedida por: <span className="font-semibold text-zinc-300">Mesa 4</span></p>
           </div>
 
