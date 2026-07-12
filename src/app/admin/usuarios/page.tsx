@@ -61,7 +61,7 @@ export default function UsuariosPage() {
                         ? "bg-red-500/10 text-red-400 border-red-500/20"
                         : user.role === "Soporte"
                         ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                        : "bg-zinc-850 text-zinc-300 border-zinc-800"
+                        : "bg-zinc-800 text-zinc-300 border-zinc-700"
                     }`}>
                       {user.role}
                     </span>

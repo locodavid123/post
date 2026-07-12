@@ -87,7 +87,7 @@ export default function NegociosPage() {
                   <td className="p-4 pr-6 text-right">
                     <Link
                       href={`/admin/negocios/${biz.id}`}
-                      className="bg-zinc-950 hover:bg-zinc-850 border border-zinc-800 hover:text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition-all"
+                      className="bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition-all"
                     >
                       Ver Detalle
                     </Link>

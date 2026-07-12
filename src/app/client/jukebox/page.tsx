@@ -36,7 +36,7 @@ export default function JukeboxPage() {
 
           {/* Vinyl Mockup */}
           <div className="relative w-44 h-44 rounded-full bg-zinc-950 border-4 border-zinc-800 flex items-center justify-center shadow-2xl shadow-orange-950/20 animate-spin [animation-duration:15s]">
-            <div className="w-16 h-16 rounded-full bg-orange-500 border-4 border-zinc-905 flex items-center justify-center text-zinc-900 font-bold text-xs">
+            <div className="w-16 h-16 rounded-full bg-orange-500 border-4 border-zinc-900 flex items-center justify-center text-zinc-900 font-bold text-xs">
               EcoPost
             </div>
             <div className="absolute w-2 h-2 rounded-full bg-zinc-950"></div>

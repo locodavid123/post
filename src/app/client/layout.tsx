@@ -1,5 +1,7 @@
+"use client";
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface SidebarLinkProps {
   href: string;
@@ -7,10 +9,16 @@ interface SidebarLinkProps {
 }
 
 function SidebarLink({ href, children }: SidebarLinkProps) {
+  const pathname = usePathname();
+  const isActive = pathname === href || pathname.startsWith(href + "/");
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-300 hover:text-white hover:bg-orange-500/10 hover:border-l-4 hover:border-orange-500 transition-all font-medium text-sm"
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all border-l-4 ${
+        isActive
+          ? "text-white bg-orange-500/10 border-orange-500"
+          : "text-zinc-300 hover:text-white hover:bg-orange-500/10 border-transparent hover:border-orange-500"
+      }`}
     >
       {children}
     </Link>
@@ -27,7 +35,7 @@ export default function ClientLayout({
       <header className="border-b border-zinc-800 bg-zinc-900/70 px-6 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-2xl font-bold bg-linear-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
               EcoPost
             </span>
             <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-orange-400">

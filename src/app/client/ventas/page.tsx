@@ -100,7 +100,11 @@ export default function VentasPage() {
                     </span>
                   </td>
                   <td className="p-4 text-xs">
-                    <span className="text-emerald-500 font-semibold">● {sale.status}</span>
+                    <span className={`font-semibold ${
+                      sale.status === "Completado" ? "text-emerald-500" : "text-rose-500"
+                    }`}>
+                      ● {sale.status}
+                    </span>
                   </td>
                   <td className="p-4 pr-6 text-right font-bold text-white">${sale.total.toFixed(2)}</td>
                 </tr>
