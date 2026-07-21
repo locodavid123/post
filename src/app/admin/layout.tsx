@@ -10,7 +10,7 @@ interface SidebarLinkProps {
 
 function SidebarLink({ href, children }: SidebarLinkProps) {
   const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(href + "/");
+  const isActive = pathname ? (pathname === href || pathname.startsWith(href + "/")) : false;
   return (
     <Link
       href={href}

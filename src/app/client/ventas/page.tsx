@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 
 interface Sale {
   id: string;
@@ -9,7 +11,7 @@ interface Sale {
   status: "Completado" | "Cancelado";
 }
 
-const recentSales: Sale[] = [
+const INITIAL_SALES: Sale[] = [
   { id: "FAC-1002", table: "Mesa 10", total: 84.00, paymentMethod: "Tarjeta", time: "10:15 AM", status: "Completado" },
   { id: "FAC-1001", table: "Mesa 2", total: 18.50, paymentMethod: "Efectivo", time: "09:48 AM", status: "Completado" },
   { id: "FAC-1000", table: "Mesa 5", total: 42.00, paymentMethod: "Transferencia", time: "09:30 AM", status: "Completado" },
@@ -19,6 +21,49 @@ const recentSales: Sale[] = [
 ];
 
 export default function VentasPage() {
+  const [sales, setSales] = useState<Sale[]>(INITIAL_SALES);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load sales from localStorage
+  useEffect(() => {
+    const savedSales = localStorage.getItem("ecopost_sales");
+    if (savedSales) {
+      setSales(JSON.parse(savedSales));
+    } else {
+      localStorage.setItem("ecopost_sales", JSON.stringify(INITIAL_SALES));
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // Sincronizar cambios (opcional si hay acciones en esta página, como reembolsos o cancelaciones)
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("ecopost_sales", JSON.stringify(sales));
+    }
+  }, [sales, isLoaded]);
+
+  // dynamic calculations based on sales made today (does not include "Ayer")
+  const todaySales = sales.filter((s) => !s.time.includes("Ayer"));
+  const totalToday = todaySales.reduce((sum, s) => sum + s.total, 0);
+  const countToday = todaySales.length;
+  const ticketAverageToday = countToday > 0 ? totalToday / countToday : 0;
+
+  // Payment methods for today
+  const cardsToday = todaySales.filter((s) => s.paymentMethod === "Tarjeta");
+  const cashToday = todaySales.filter((s) => s.paymentMethod === "Efectivo");
+  const transferToday = todaySales.filter((s) => s.paymentMethod === "Transferencia");
+
+  // Filtering list by search query
+  const filteredSales = sales.filter((sale) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      sale.id.toLowerCase().includes(query) ||
+      sale.table.toLowerCase().includes(query) ||
+      sale.paymentMethod.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto">
       {/* Title */}
@@ -31,7 +76,7 @@ export default function VentasPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
           <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Total Facturado Hoy</p>
-          <p className="text-3xl font-bold text-white mt-2">$144.50</p>
+          <p className="text-3xl font-bold text-white mt-2">${totalToday.toFixed(2)}</p>
           <div className="flex gap-2 items-center mt-3 text-xs text-emerald-500 font-semibold">
             <span>📈</span>
             <span>+12.4% vs promedio diario</span>
@@ -39,23 +84,29 @@ export default function VentasPage() {
         </div>
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
           <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Transacciones Realizadas</p>
-          <p className="text-3xl font-bold text-white mt-2">3 Ventas</p>
+          <p className="text-3xl font-bold text-white mt-2">{countToday} {countToday === 1 ? "Venta" : "Ventas"}</p>
           <div className="flex gap-2 items-center mt-3 text-xs text-zinc-400 font-medium">
             <span>Ticket promedio:</span>
-            <span className="text-white font-bold">$48.16</span>
+            <span className="text-white font-bold">${ticketAverageToday.toFixed(2)}</span>
           </div>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
-          <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Métodos de Pago Utilizados</p>
+          <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Métodos de Pago Utilizados (Hoy)</p>
           <div className="flex flex-col gap-1.5 mt-3">
             <div className="flex justify-between text-xs text-zinc-400">
-              <span>💳 Tarjeta (2):</span>
-              <span className="font-bold text-white">$126.00</span>
+              <span>💳 Tarjeta ({cardsToday.length}):</span>
+              <span className="font-bold text-white">${cardsToday.reduce((sum, s) => sum + s.total, 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-xs text-zinc-400">
-              <span>💵 Efectivo (1):</span>
-              <span className="font-bold text-white">$18.50</span>
+              <span>💵 Efectivo ({cashToday.length}):</span>
+              <span className="font-bold text-white">${cashToday.reduce((sum, s) => sum + s.total, 0).toFixed(2)}</span>
             </div>
+            {transferToday.length > 0 && (
+              <div className="flex justify-between text-xs text-zinc-400">
+                <span>📲 Transferencia ({transferToday.length}):</span>
+                <span className="font-bold text-white">${transferToday.reduce((sum, s) => sum + s.total, 0).toFixed(2)}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -67,8 +118,10 @@ export default function VentasPage() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Buscar factura..."
-              className="bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs px-4 py-2 rounded-xl focus:border-orange-500 focus:outline-none w-48 transition-all"
+              placeholder="Buscar factura o mesa..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs px-4 py-2 rounded-xl focus:border-orange-500 focus:outline-none w-48 transition-all placeholder:text-zinc-650"
             />
             <button className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs px-3 py-2 rounded-xl transition-all">
               Exportar CSV
@@ -77,40 +130,46 @@ export default function VentasPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-400">
-            <thead className="bg-zinc-950 text-zinc-300 font-semibold text-xs border-b border-zinc-800 uppercase tracking-wider">
-              <tr>
-                <th className="p-4 pl-6">ID Factura</th>
-                <th className="p-4">Origen</th>
-                <th className="p-4">Hora</th>
-                <th className="p-4">Método de Pago</th>
-                <th className="p-4">Estado</th>
-                <th className="p-4 pr-6 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {recentSales.map((sale) => (
-                <tr key={sale.id} className="hover:bg-zinc-900/50 transition-all">
-                  <td className="p-4 pl-6 font-semibold text-white">{sale.id}</td>
-                  <td className="p-4 text-zinc-300">{sale.table}</td>
-                  <td className="p-4 text-xs text-zinc-500">{sale.time}</td>
-                  <td className="p-4 text-xs">
-                    <span className="bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-full border border-zinc-700/50 font-medium">
-                      {sale.paymentMethod}
-                    </span>
-                  </td>
-                  <td className="p-4 text-xs">
-                    <span className={`font-semibold ${
-                      sale.status === "Completado" ? "text-emerald-500" : "text-rose-500"
-                    }`}>
-                      ● {sale.status}
-                    </span>
-                  </td>
-                  <td className="p-4 pr-6 text-right font-bold text-white">${sale.total.toFixed(2)}</td>
+          {filteredSales.length === 0 ? (
+            <div className="text-center py-12 text-zinc-500 italic text-sm">
+              No se encontraron facturas con ese criterio.
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm text-zinc-400">
+              <thead className="bg-zinc-950 text-zinc-300 font-semibold text-xs border-b border-zinc-800 uppercase tracking-wider">
+                <tr>
+                  <th className="p-4 pl-6">ID Factura</th>
+                  <th className="p-4">Origen</th>
+                  <th className="p-4">Hora</th>
+                  <th className="p-4">Método de Pago</th>
+                  <th className="p-4">Estado</th>
+                  <th className="p-4 pr-6 text-right">Total</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-800">
+                {filteredSales.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-zinc-900/50 transition-all">
+                    <td className="p-4 pl-6 font-semibold text-white">{sale.id}</td>
+                    <td className="p-4 text-zinc-300">{sale.table}</td>
+                    <td className="p-4 text-xs text-zinc-500">{sale.time}</td>
+                    <td className="p-4 text-xs">
+                      <span className="bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-full border border-zinc-700/50 font-medium">
+                        {sale.paymentMethod}
+                      </span>
+                    </td>
+                    <td className="p-4 text-xs">
+                      <span className={`font-semibold ${
+                        sale.status === "Completado" ? "text-emerald-500" : "text-rose-500"
+                      }`}>
+                        ● {sale.status}
+                      </span>
+                    </td>
+                    <td className="p-4 pr-6 text-right font-bold text-white">${sale.total.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
