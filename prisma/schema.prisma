@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // NOTA: En Prisma v7, la URL de conexión se configura en prisma.config.ts
+  // y se pasa al constructor de PrismaClient, NO aquí en el schema.
+}
+
+
+// --- Modelos para la Jukebox ---
+
+model TableSession {
+  id        String   @id @default(cuid())
+  tableId   String   @unique // "mesa-1", "terraza-2", etc.
+  nickname  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  songRequests SongRequest[]
+  products     TableProduct[]
+}
+
+model SongRequest {
+  id           String   @id @default(cuid())
+  youtubeId    String
+  title        String
+  artist       String
+  thumbnailUrl String
+  status       String   @default("PENDING") // PENDING, PLAYING, PLAYED
+  createdAt    DateTime @default(now())
+
+  // Relación con la mesa que la pidió
+  requestedById String
+  requestedBy   TableSession @relation(fields: [requestedById], references: [id])
+}
+
+// --- Modelos para la futura funcionalidad de Productos ---
+
+model Product {
+  id    String @id @default(cuid())
+  name  String
+  // Podrías añadir más campos como description, imageUrl, etc.
+
+  // Relación
+  tables TableProduct[]
+}
+
+model TableProduct {
+  tableSessionId String
+  productId      String
+  tableSession   TableSession @relation(fields: [tableSessionId], references: [id])
+  product        Product      @relation(fields: [productId], references: [id])
+
+  @@id([tableSessionId, productId])
+}
