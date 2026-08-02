@@ -11,5 +11,9 @@ export default function ConditionalHeader() {
     return null;
   }
 
+  if (pathname.startsWith("/jukebox")) {
+    return <Header variant="jukebox" />;
+  }
+
   return <Header />;
 }
