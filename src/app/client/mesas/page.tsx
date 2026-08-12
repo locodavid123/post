@@ -254,10 +254,11 @@ export default function MesasPage() {
     if (savedSalesStr) {
       salesList = JSON.parse(savedSalesStr);
     } else {
+      const now = new Date();
       salesList = [
-        { id: "FAC-1002", table: "Mesa 10", total: 84.00, paymentMethod: "Tarjeta", time: "10:15 AM", status: "Completado" },
-        { id: "FAC-1001", table: "Mesa 2", total: 18.50, paymentMethod: "Efectivo", time: "09:48 AM", status: "Completado" },
-        { id: "FAC-1000", table: "Mesa 5", total: 42.00, paymentMethod: "Transferencia", time: "09:30 AM", status: "Completado" },
+        { id: "FAC-1002", table: "Mesa 10", total: 84.00, paymentMethod: "Tarjeta", date: now.toISOString(), status: "Completado" },
+        { id: "FAC-1001", table: "Mesa 2", total: 18.50, paymentMethod: "Efectivo", date: now.toISOString(), status: "Completado" },
+        { id: "FAC-1000", table: "Mesa 5", total: 42.00, paymentMethod: "Transferencia", date: now.toISOString(), status: "Completado" },
       ];
     }
 
@@ -277,7 +278,11 @@ export default function MesasPage() {
       total: totalAmount,
       paymentMethod: checkoutPaymentMethod,
       time: timeStr,
-      status: "Completado"
+      date: now.toISOString(),
+      status: "Completado",
+      waiter: currentTable.waiter,
+      guestCount: currentTable.guestCount || 1,
+      saleType: "Mesas"
     };
 
     localStorage.setItem("ecopost_sales", JSON.stringify([newSale, ...salesList]));
