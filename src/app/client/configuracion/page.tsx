@@ -1,6 +1,65 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function ConfiguracionPage() {
+  const search = useSearchParams();
+  const businessId = search.get("businessId");
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [enableJukebox, setEnableJukebox] = useState(true);
+  const [enableQrOrders, setEnableQrOrders] = useState(true);
+  const [alertSound, setAlertSound] = useState("ping");
+
+  useEffect(() => {
+    if (!businessId) return;
+    setLoading(true);
+    fetch(`/api/business/${businessId}/settings`)
+      .then((r) => r.json())
+      .then((data) => {
+        const s = data?.settings;
+        if (s) {
+          setName(s.name || "");
+          setPhone(s.phone || "");
+          setAddress(s.address || "");
+          setEnableJukebox(Boolean(s.enableJukebox));
+          setEnableQrOrders(Boolean(s.enableQrOrders));
+          setAlertSound(s.alertSound || "ping");
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, [businessId]);
+
+  async function handleSave() {
+    if (!businessId) {
+      setStatus("businessId missing in URL query");
+      return;
+    }
+    setSaving(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/business/${businessId}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, address, enableJukebox, enableQrOrders, alertSound }),
+      });
+      if (!res.ok) throw new Error("Error saving settings");
+      setStatus("Guardado correctamente");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8 max-w-4xl mx-auto">
       {/* Title */}
@@ -20,7 +79,8 @@ export default function ConfiguracionPage() {
               <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Nombre del Negocio</label>
               <input
                 type="text"
-                defaultValue="Restaurante XYZ"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm px-4 py-3 rounded-xl focus:border-orange-500 focus:outline-none transition-all"
               />
             </div>
@@ -28,7 +88,8 @@ export default function ConfiguracionPage() {
               <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Teléfono de Contacto</label>
               <input
                 type="text"
-                defaultValue="+54 11 2345-6789"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 className="bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm px-4 py-3 rounded-xl focus:border-orange-500 focus:outline-none transition-all"
               />
             </div>
@@ -36,7 +97,8 @@ export default function ConfiguracionPage() {
               <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Dirección Física</label>
               <input
                 type="text"
-                defaultValue="Av. Corrientes 1234, Ciudad Autónoma de Buenos Aires"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
                 className="bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm px-4 py-3 rounded-xl focus:border-orange-500 focus:outline-none transition-all"
               />
             </div>
@@ -54,30 +116,37 @@ export default function ConfiguracionPage() {
                 <h4 className="text-sm font-semibold text-white">Activar Jukebox</h4>
                 <p className="text-xs text-zinc-500 mt-1">Permite a los comensales pedir música escaneando el código QR de su mesa.</p>
               </div>
-              <div className="relative w-11 h-6 bg-orange-500 rounded-full flex items-center px-1 cursor-pointer">
-                <div className="w-4 h-4 bg-white rounded-full translate-x-5 transition-transform"></div>
-              </div>
+               <div className="relative">
+                 <label className="switch">
+                   <input type="checkbox" checked={enableJukebox} onChange={(e) => setEnableJukebox(e.target.checked)} />
+                   <span className="slider" />
+                 </label>
+               </div>
             </div>
 
             {/* Toggle 2: Pedidos QR */}
-            <div className="flex justify-between items-center p-4 bg-zinc-950 border border-zinc-900 rounded-xl">
-              <div>
-                <h4 className="text-sm font-semibold text-white">Autopedido por QR</h4>
-                <p className="text-xs text-zinc-500 mt-1">Los clientes pueden hacer pedidos directamente a cocina desde su teléfono sin mesero.</p>
-              </div>
-              <div className="relative w-11 h-6 bg-orange-500 rounded-full flex items-center px-1 cursor-pointer">
-                <div className="w-4 h-4 bg-white rounded-full translate-x-5 transition-transform"></div>
-              </div>
-            </div>
+                <div className="flex justify-between items-center p-4 bg-zinc-950 border border-zinc-900 rounded-xl">
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Autopedido por QR</h4>
+                    <p className="text-xs text-zinc-500 mt-1">Los clientes pueden hacer pedidos directamente a cocina desde su teléfono sin mesero.</p>
+                  </div>
+                  <div className="relative">
+                    <label className="switch">
+                      <input type="checkbox" checked={enableQrOrders} onChange={(e) => setEnableQrOrders(e.target.checked)} />
+                      <span className="slider" />
+                    </label>
+                  </div>
+                </div>
 
             {/* Toggle 3: Notificaciones de pedidos */}
-            <div className="flex justify-between items-center p-4 bg-zinc-950 border border-zinc-900 rounded-xl">
+            <div className="flex flex-col gap-2 p-4 bg-zinc-950 border border-zinc-900 rounded-xl">
               <div>
                 <h4 className="text-sm font-semibold text-white">Alertas Sonoras de Pedido</h4>
                 <p className="text-xs text-zinc-500 mt-1">Reproducir un sonido cada vez que ingrese un nuevo pedido en cola.</p>
               </div>
-              <div className="relative w-11 h-6 bg-zinc-800 rounded-full flex items-center px-1 cursor-pointer">
-                <div className="w-4 h-4 bg-zinc-500 rounded-full transition-transform"></div>
+              <div className="flex items-center gap-3">
+                <input type="text" value={alertSound} onChange={(e) => setAlertSound(e.target.value)} className="bg-zinc-900 px-3 py-2 rounded" />
+                <span className="text-xs text-zinc-500">Nombre del sonido (ej. ping, ding)</span>
               </div>
             </div>
 
@@ -86,13 +155,39 @@ export default function ConfiguracionPage() {
 
         {/* Buttons */}
         <div className="flex justify-end gap-3">
-          <button className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-sm px-6 py-2.5 rounded-xl transition-all">
+          <button
+            onClick={() => {
+              if (!businessId) return;
+              setLoading(true);
+              fetch(`/api/business/${businessId}/settings`)
+                .then((r) => r.json())
+                .then((d) => {
+                  const s = d?.settings;
+                  if (s) {
+                    setName(s.name || "");
+                    setPhone(s.phone || "");
+                    setAddress(s.address || "");
+                    setEnableJukebox(Boolean(s.enableJukebox));
+                    setEnableQrOrders(Boolean(s.enableQrOrders));
+                    setAlertSound(s.alertSound || "ping");
+                  }
+                })
+                .catch((e) => console.error(e))
+                .finally(() => setLoading(false));
+            }}
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-sm px-6 py-2.5 rounded-xl transition-all"
+          >
             Descartar Cambios
           </button>
-          <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-orange-500/15">
-            Guardar Configuración
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-orange-500/15 disabled:opacity-60"
+          >
+            {saving ? "Guardando..." : "Guardar Configuración"}
           </button>
         </div>
+        {status && <div className="mt-2 text-sm text-zinc-300">{status}</div>}
 
       </div>
     </div>

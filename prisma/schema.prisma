@@ -59,3 +59,33 @@ model TableProduct {
 
   @@id([tableSessionId, productId])
 }
+
+// --- Modelo de usuarios para autenticación ---
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      String   @default("USER") // USER, ADMIN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  businessId String? 
+  business   Business? @relation(fields: [businessId], references: [id])
+}
+
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  code      String?  @unique
+  phone     String?
+  createdAt DateTime @default(now())
+
+  // Configuration fields
+  enableJukebox Boolean @default(true)
+  enableQrOrders Boolean @default(true)
+  alertSound     String  @default("ping")
+  address        String?
+
+  users     User[]
+}
+

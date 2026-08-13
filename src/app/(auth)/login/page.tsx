@@ -2,9 +2,42 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.message || "Error de autenticación");
+        return;
+      }
+
+      const role = data?.user?.role || "USER";
+      if (role === "ADMIN") router.push("/admin");
+      else router.push("/client");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#07111f] px-6 py-10 text-white">
@@ -21,32 +54,37 @@ export default function LoginPage() {
           <div className="space-y-4 rounded-3xl border border-zinc-800 bg-[#0f1720] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
             <p className="text-base font-semibold text-orange-400">Ingresa a tu cuenta</p>
 
-            <label className="flex flex-col gap-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
-              Usuario
-              <input
-                type="text"
-                placeholder="Ingresa tu usuario"
-                className="rounded-2xl border border-zinc-800 bg-[#0f1720] px-4 py-3 text-white outline-none transition focus:border-orange-500"
-              />
-            </label>
-
-            <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-              Contraseña
-              <div className="mt-2 relative rounded-2xl border border-zinc-800 bg-[#0f1720] focus-within:border-orange-500">
+            <form onSubmit={handleSubmit}>
+              <label className="flex flex-col gap-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
+                Usuario
                 <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className="w-full rounded-2xl bg-transparent px-4 py-3 pr-14 text-white outline-none"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  placeholder="Ingresa tu usuario"
+                  className="rounded-2xl border border-zinc-800 bg-[#0f1720] px-4 py-3 text-white outline-none transition focus:border-orange-500"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-zinc-900/80 px-3 py-2 text-xs text-zinc-300 transition hover:bg-zinc-800"
-                >
-                  {showPassword ? "Ocultar" : "Ver"}
-                </button>
-              </div>
-            </label>
+              </label>
+
+              <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                Contraseña
+                <div className="mt-2 relative rounded-2xl border border-zinc-800 bg-[#0f1720] focus-within:border-orange-500">
+                  <input
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    className="w-full rounded-2xl bg-transparent px-4 py-3 pr-14 text-white outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-zinc-900/80 px-3 py-2 text-xs text-zinc-300 transition hover:bg-zinc-800"
+                  >
+                    {showPassword ? "Ocultar" : "Ver"}
+                  </button>
+                </div>
+              </label>
 
             <div className="flex items-center justify-between text-xs text-zinc-500">
               <button type="button" className="font-semibold text-zinc-300 hover:text-white">
@@ -55,12 +93,15 @@ export default function LoginPage() {
               <span className="rounded-full bg-zinc-900 px-3 py-1 text-zinc-400">PRO</span>
             </div>
 
-            <Link
-              href="/client"
-              className="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
-            >
-              INGRESAR
-            </Link>
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
+              >
+                {loading ? "Cargando..." : "INGRESAR"}
+              </button>
+            </form>
+            {error && <div className="mt-2 text-sm text-red-400">{error}</div>}
           </div>
 
           <p className="mt-6 text-center text-sm text-zinc-500">
