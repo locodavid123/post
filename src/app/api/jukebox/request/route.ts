@@ -1,52 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma'; // 1. Importamos nuestra instancia única de Prisma
+import prisma from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { song, tableId } = body;
+        const { song, tableId = 'admin' } = body;
 
-        if (!song || !tableId) {
-            return NextResponse.json({ error: 'Faltan datos de la canción o de la mesa' }, { status: 400 });
+        if (!song || !song.id || !song.title) {
+            return NextResponse.json({ error: 'Faltan datos obligatorios de la canción.' }, { status: 400 });
         }
 
-        // 1. Buscamos la sesión activa para esa mesa
-        const tableSession = await prisma.tableSession.findUnique({
-            where: { tableId },
+        const effectiveTableId = tableId || 'admin';
+
+        // 1. Buscamos o creamos la sesión para esta mesa o para el Administrador
+        let tableSession = await prisma.tableSession.findUnique({
+            where: { tableId: effectiveTableId },
         });
 
         if (!tableSession) {
-            return NextResponse.json({ error: 'No se encontró una sesión para esta mesa. Regístrate primero.' }, { status: 404 });
+            // Si es solicitud del panel de administración o barra, auto-creamos la sesión
+            if (
+                effectiveTableId === 'admin' ||
+                effectiveTableId === 'barra' ||
+                effectiveTableId.toLowerCase().includes('admin')
+            ) {
+                tableSession = await prisma.tableSession.create({
+                    data: {
+                        tableId: effectiveTableId,
+                        nickname: 'Administrador',
+                    },
+                });
+            } else {
+                return NextResponse.json(
+                    { error: 'No se encontró una sesión para esta mesa. Regístrate primero.' },
+                    { status: 404 }
+                );
+            }
         }
 
-        // 2. Verificamos tu restricción: "no me permita colocar más de una canción en lista de espera"
-        const existingRequest = await prisma.songRequest.findFirst({
-            where: {
-                requestedById: tableSession.id,
-                status: 'PENDING',
-            },
-        });
+        // 2. Para mesas regulares (no admin), aplicamos restricción de 1 canción en espera
+        const isAdmin =
+            effectiveTableId.toLowerCase().includes('admin') ||
+            tableSession.nickname.toLowerCase().includes('admin');
 
-        if (existingRequest) {
-            return NextResponse.json({ error: 'Ya tienes una canción en la cola de espera.' }, { status: 409 }); // 409 Conflict
+        if (!isAdmin) {
+            const existingRequest = await prisma.songRequest.findFirst({
+                where: {
+                    requestedById: tableSession.id,
+                    status: 'PENDING',
+                },
+            });
+
+            if (existingRequest) {
+                return NextResponse.json(
+                    { error: 'Ya tienes una canción en la cola de espera.' },
+                    { status: 409 }
+                );
+            }
         }
 
-        // 3. Si pasa las validaciones, creamos la solicitud en la base de datos
+        // 3. Crear la solicitud en la base de datos
         const newSongRequest = await prisma.songRequest.create({
             data: {
                 youtubeId: song.id,
                 title: song.title,
-                artist: song.artist,
-                thumbnailUrl: song.thumbnail,
+                artist: song.artist || 'YouTube',
+                thumbnailUrl:
+                    song.thumbnail ||
+                    `https://img.youtube.com/vi/${song.id}/hqdefault.jpg`,
                 status: 'PENDING',
-                requestedById: tableSession.id, // Vinculamos la canción con la sesión de la mesa
+                requestedById: tableSession.id,
+            },
+            include: {
+                requestedBy: true,
             },
         });
 
-        return NextResponse.json(newSongRequest, { status: 201 }); // 201 Created
-
+        return NextResponse.json(newSongRequest, { status: 201 });
     } catch (error) {
         console.error('Error al solicitar la canción:', error);
-        return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+        return NextResponse.json(
+            { error: 'Error interno del servidor al procesar la solicitud.' },
+            { status: 500 }
+        );
     }
 }
