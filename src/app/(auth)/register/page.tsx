@@ -3,15 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "@/hooks";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
 
-  const { values, handleChange, resetForm } = useForm({
+  // Estados del formulario
+  const [formData, setFormData] = useState({
     businessName: "",
     managerName: "",
     phone: "",
@@ -21,43 +18,80 @@ export default function RegisterPage() {
     acceptTerms: false,
   });
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!values.acceptTerms) {
-      setStatus("Debes aceptar los términos para continuar.");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Manejador de cambios en los inputs
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  // Manejador del submit del formulario
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    // 1. Interceptar envío por defecto para evitar GET en URL
+    e.preventDefault();
+
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    // Validación básica de términos
+    if (!formData.acceptTerms) {
+      setErrorMessage("Debes aceptar los Términos del Servicio y Políticas de Privacidad para continuar.");
       return;
     }
 
     setLoading(true);
-    setStatus(null);
 
+    // 2. Envío de datos mediante POST dentro de un bloque try/catch
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          businessName: formData.businessName,
+          managerName: formData.managerName,
+          phone: formData.phone,
+          email: formData.email,
+          password: formData.password,
+          promoCode: formData.promoCode,
+          acceptTerms: formData.acceptTerms,
+        }),
       });
 
-      const result = await response.json();
-      if (!response.ok) {
-        setStatus(result.message || "Error al crear la cuenta.");
-      } else {
-        setStatus("Cuenta creada correctamente. Redirigiendo al login...");
-        resetForm();
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccessMessage("¡Cuenta creada con éxito! Redirigiendo al inicio de sesión...");
+        // Redirigir a /login tras éxito
         setTimeout(() => {
           router.push("/login");
-        }, 1200);
+        }, 1000);
+      } else {
+        // Extraer mensaje de error del servidor
+        setErrorMessage(data?.message || "Ocurrió un error al registrar la cuenta.");
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Error de red.");
+      console.error("Error en el registro:", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Error de conexión con el servidor. Intenta de nuevo."
+      );
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <main className="min-h-screen bg-[#08101d] px-6 py-10 text-white">
       <div className="mx-auto grid max-w-7xl gap-10 xl:grid-cols-[1.2fr_0.9fr]">
+        {/* Columna Izquierda: Información de la plataforma */}
         <section className="rounded-4xl border border-zinc-800 bg-[#101b2f]/80 p-10 shadow-[0_40px_120px_rgba(15,23,42,0.35)] backdrop-blur-xl">
           <div className="mb-10 space-y-6">
             <span className="text-sm uppercase tracking-[0.32em] text-zinc-500">EcoPost</span>
@@ -79,8 +113,15 @@ export default function RegisterPage() {
               <div className="grid gap-4 md:grid-cols-[1.3fr_0.9fr]">
                 <div className="rounded-3xl border border-zinc-800 bg-[#111b2f] p-4">
                   <div className="grid gap-3">
-                    {['1','2','3','4','5','6'].map((label) => (
-                      <div key={label} className={`flex h-11 items-center justify-center rounded-2xl ${label === '2' || label === '5' ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                    {["1", "2", "3", "4", "5", "6"].map((label) => (
+                      <div
+                        key={label}
+                        className={`flex h-11 items-center justify-center rounded-2xl ${
+                          label === "2" || label === "5"
+                            ? "bg-rose-500/20 text-rose-300"
+                            : "bg-emerald-500/20 text-emerald-300"
+                        }`}
+                      >
                         {label}
                       </div>
                     ))}
@@ -98,7 +139,11 @@ export default function RegisterPage() {
                     </div>
                     <div className="grid gap-2">
                       {[...Array(6)].map((_, idx) => (
-                        <div key={idx} className="h-2 rounded-full bg-orange-500/70" style={{ width: `${80 - idx * 10}%` }} />
+                        <div
+                          key={idx}
+                          className="h-2 rounded-full bg-orange-500/70"
+                          style={{ width: `${80 - idx * 10}%` }}
+                        />
                       ))}
                     </div>
                   </div>
@@ -123,6 +168,7 @@ export default function RegisterPage() {
           </div>
         </section>
 
+        {/* Columna Derecha: Formulario de Registro */}
         <section className="relative overflow-hidden rounded-4xl border border-zinc-800 bg-[#111b2f]/90 p-8 shadow-[0_40px_120px_rgba(15,23,42,0.25)]">
           <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-orange-500/10 blur-3xl" />
           <div className="absolute left-0 bottom-0 h-36 w-36 rounded-full bg-cyan-500/10 blur-3xl" />
@@ -132,12 +178,52 @@ export default function RegisterPage() {
               <h2 className="text-3xl font-bold text-white">Crear cuenta gratis</h2>
               <p className="mt-2 text-sm text-zinc-400">Comienza hoy, sin tarjeta de crédito</p>
 
-              <form onSubmit={handleSubmit} className="mt-8 grid gap-4">
+              {/* Alerta de Error */}
+              {errorMessage && (
+                <div className="mt-6 flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300">
+                  <svg
+                    className="mt-0.5 h-5 w-5 shrink-0 text-rose-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* Alerta de Éxito */}
+              {successMessage && (
+                <div className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+                  <svg
+                    className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
                 <label className="flex flex-col gap-2 text-sm text-zinc-400">
                   Nombre del negocio
                   <input
                     name="businessName"
-                    value={values.businessName}
+                    value={formData.businessName}
                     onChange={handleChange}
                     type="text"
                     placeholder="Nombre del negocio"
@@ -150,7 +236,7 @@ export default function RegisterPage() {
                   Nombre y apellido del encargado
                   <input
                     name="managerName"
-                    value={values.managerName}
+                    value={formData.managerName}
                     onChange={handleChange}
                     type="text"
                     placeholder="Nombre y apellido"
@@ -165,7 +251,7 @@ export default function RegisterPage() {
                     <span className="inline-flex items-center px-4 text-sm text-zinc-300">+57</span>
                     <input
                       name="phone"
-                      value={values.phone}
+                      value={formData.phone}
                       onChange={handleChange}
                       type="tel"
                       placeholder="Ejemplo: (123) 123 4567"
@@ -178,7 +264,7 @@ export default function RegisterPage() {
                   E-mail de contacto
                   <input
                     name="email"
-                    value={values.email}
+                    value={formData.email}
                     onChange={handleChange}
                     type="email"
                     placeholder="Ejemplo: nombre@gmail.com"
@@ -192,7 +278,7 @@ export default function RegisterPage() {
                   <div className="relative rounded-2xl border border-zinc-800 bg-[#0f1720] focus-within:border-orange-500">
                     <input
                       name="password"
-                      value={values.password}
+                      value={formData.password}
                       onChange={handleChange}
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
@@ -216,7 +302,7 @@ export default function RegisterPage() {
                   Código promocional <span className="text-xs text-zinc-500">(opcional)</span>
                   <input
                     name="promoCode"
-                    value={values.promoCode}
+                    value={formData.promoCode}
                     onChange={handleChange}
                     type="text"
                     placeholder="Código promocional"
@@ -228,13 +314,20 @@ export default function RegisterPage() {
                   <input
                     name="acceptTerms"
                     type="checkbox"
-                    checked={values.acceptTerms}
+                    checked={formData.acceptTerms}
                     onChange={handleChange}
                     className="mt-1 h-4 w-4 rounded border-zinc-700 bg-zinc-950 text-orange-500 focus:ring-orange-500"
                   />
                   <span>
-                    Acepto las <Link href="#" className="font-semibold text-orange-400 hover:text-orange-300">Condiciones del Servicio</Link> y las{' '}
-                    <Link href="#" className="font-semibold text-orange-400 hover:text-orange-300">Políticas de Privacidad</Link> de EcoPost.
+                    Acepto las{" "}
+                    <Link href="#" className="font-semibold text-orange-400 hover:text-orange-300">
+                      Condiciones del Servicio
+                    </Link>{" "}
+                    y las{" "}
+                    <Link href="#" className="font-semibold text-orange-400 hover:text-orange-300">
+                      Políticas de Privacidad
+                    </Link>{" "}
+                    de EcoPost.
                   </span>
                 </label>
 
@@ -246,18 +339,26 @@ export default function RegisterPage() {
                   {loading ? "Creando cuenta…" : "Crear cuenta gratis"}
                 </button>
               </form>
-              {status && <p className="mt-4 text-sm text-zinc-300">{status}</p>}
 
               <div className="mt-6 rounded-3xl border border-zinc-800 bg-[#0b1320] p-5 text-sm text-zinc-400">
-                <p className="text-center">¿Ya tienes cuenta?{' '}
-                  <Link href="/login" className="font-semibold text-orange-400 hover:text-orange-300">Inicia sesión</Link>
+                <p className="text-center">
+                  ¿Ya tienes cuenta?{" "}
+                  <Link href="/login" className="font-semibold text-orange-400 hover:text-orange-300">
+                    Inicia sesión
+                  </Link>
                 </p>
               </div>
 
               <div className="mt-6 grid gap-3 rounded-3xl border border-zinc-800 bg-[#111b2f] p-4 text-xs text-zinc-400 sm:grid-cols-3">
-                <span className="flex items-center justify-center rounded-2xl bg-zinc-950/70 px-3 py-2">Sin tarjeta</span>
-                <span className="flex items-center justify-center rounded-2xl bg-zinc-950/70 px-3 py-2">Cancela cuando quieras</span>
-                <span className="flex items-center justify-center rounded-2xl bg-zinc-950/70 px-3 py-2">Soporte gratis</span>
+                <span className="flex items-center justify-center rounded-2xl bg-zinc-950/70 px-3 py-2">
+                  Sin tarjeta
+                </span>
+                <span className="flex items-center justify-center rounded-2xl bg-zinc-950/70 px-3 py-2">
+                  Cancela cuando quieras
+                </span>
+                <span className="flex items-center justify-center rounded-2xl bg-zinc-950/70 px-3 py-2">
+                  Soporte gratis
+                </span>
               </div>
             </div>
           </div>

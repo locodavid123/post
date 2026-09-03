@@ -10,6 +10,9 @@ interface Sale {
   time?: string;
   date?: string;
   status: "Completado" | "Cancelado";
+  waiter?: string;
+  saleType?: string;
+  guestCount?: number;
 }
 
 const getIsoDate = (daysOffset: number = 0, hour: number = 12, minute: number = 0) => {

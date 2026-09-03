@@ -1,7 +1,5 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 
-// Definimos una interfaz para la respuesta que esperamos de la API de YouTube
 interface YouTubeSearchResult {
     id: {
         videoId: string;
@@ -10,54 +8,77 @@ interface YouTubeSearchResult {
         title: string;
         channelTitle: string;
         thumbnails: {
-            default: {
-                url: string;
-            };
+            default?: { url: string };
+            medium?: { url: string };
+            high?: { url: string };
         };
     };
 }
 
+function decodeHtmlEntities(text: string): string {
+    return text
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+}
+
 export async function GET(request: NextRequest) {
-    // 1. Obtenemos el término de búsqueda de los parámetros de la URL
+    // 1. Obtener término de búsqueda
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
 
-    if (!query) {
+    if (!query || !query.trim()) {
         return NextResponse.json({ error: 'El término de búsqueda es requerido' }, { status: 400 });
     }
 
-    // 2. Obtenemos la clave de API de las variables de entorno (¡nunca la pongas directamente en el código!)
+    // 2. Obtener clave de API de YouTube de las variables de entorno
     const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
     if (!YOUTUBE_API_KEY) {
-        console.error('Error: La clave de API de YouTube no está configurada en .env');
-        return NextResponse.json({ error: 'Error de configuración del servidor' }, { status: 500 });
+        console.error('Error: La clave YOUTUBE_API_KEY no está configurada en .env');
+        return NextResponse.json(
+            { error: 'La clave de la API de YouTube no está configurada en el servidor (YOUTUBE_API_KEY).' },
+            { status: 500 }
+        );
     }
 
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&key=${YOUTUBE_API_KEY}&maxResults=5`;
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
+        query.trim()
+    )}&type=video&key=${YOUTUBE_API_KEY}&maxResults=6`;
 
     try {
-        // 3. Hacemos la llamada a la API de YouTube
         const response = await fetch(url);
         const data = await response.json();
 
-        // Si la API de YouTube devuelve un error o no contiene items, lanzamos un error descriptivo
         if (!response.ok || !data.items) {
-            console.error('Error de la API de YouTube:', data.error || data);
-            return NextResponse.json({ error: 'Error al contactar la API de YouTube' }, { status: response.status || 500 });
+            const apiError = data?.error?.message || 'Error al comunicarse con la API de YouTube';
+            console.error('Error YouTube API:', data?.error || data);
+            return NextResponse.json({ error: apiError }, { status: response.status || 500 });
         }
 
-        // 4. Mapeamos la respuesta para quedarnos solo con los datos que necesitamos
+        // Mapear resultados
         const results = data.items.map((item: YouTubeSearchResult) => ({
             id: item.id.videoId,
-            title: item.snippet.title,
-            artist: item.snippet.channelTitle, // Usamos el nombre del canal como artista
-            thumbnail: item.snippet.thumbnails.default.url,
+            title: decodeHtmlEntities(item.snippet.title || ''),
+            artist: decodeHtmlEntities(item.snippet.channelTitle || ''),
+            thumbnail:
+                item.snippet.thumbnails?.medium?.url ||
+                item.snippet.thumbnails?.high?.url ||
+                item.snippet.thumbnails?.default?.url ||
+                `https://img.youtube.com/vi/${item.id.videoId}/mqdefault.jpg`,
+            url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
         }));
 
         return NextResponse.json(results);
     } catch (error) {
-        console.error('Error al buscar en YouTube:', error);
-        return NextResponse.json({ error: 'Error al contactar la API de YouTube' }, { status: 500 });
+        console.error('Error al realizar la búsqueda en YouTube:', error);
+        return NextResponse.json(
+            { error: 'Error interno del servidor al buscar canciones en YouTube.' },
+            { status: 500 }
+        );
     }
 }
