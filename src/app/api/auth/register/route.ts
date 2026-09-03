@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { signToken } from "@/lib/jwt";
 
 config();
 
@@ -65,9 +66,13 @@ export async function POST(request: Request) {
     // Do not return password hash
     const { password: _p, ...safeUser } = user;
 
+    // create JWT and set cookie
+    const token = signToken({ id: safeUser.id, role: safeUser.role, businessId: safeUser.businessId });
+    const cookie = `token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`;
+
     return new Response(JSON.stringify({ message: "Cuenta creada correctamente.", user: safeUser }), {
       status: 201,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Set-Cookie": cookie },
     });
   } catch (err) {
     console.error(err);
