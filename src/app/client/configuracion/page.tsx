@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 export default function ConfiguracionPage() {
-  const search = useSearchParams();
-  const businessId = search.get("businessId");
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -21,8 +19,11 @@ export default function ConfiguracionPage() {
   useEffect(() => {
     if (!businessId) return;
     setLoading(true);
-    fetch(`/api/business/${businessId}/settings`)
-      .then((r) => r.json())
+    fetch(`/api/business/settings`)
+      .then((r) => {
+        if (!r.ok) throw new Error('Error fetching settings');
+        return r.json();
+      })
       .then((data) => {
         const s = data?.settings;
         if (s) {
@@ -38,15 +39,31 @@ export default function ConfiguracionPage() {
       .finally(() => setLoading(false));
   }, [businessId]);
 
+  // fetch authenticated user to derive businessId
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/auth/me')
+      .then((r) => {
+        if (!r.ok) throw new Error('Unauthorized');
+        return r.json();
+      })
+      .then((data) => {
+        const u = data?.user;
+        setBusinessId(u?.businessId || null);
+      })
+      .catch((err) => {
+        console.warn('User not authenticated', err);
+        setStatus('No autenticado');
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   async function handleSave() {
-    if (!businessId) {
-      setStatus("businessId missing in URL query");
-      return;
-    }
+    // server will resolve businessId from session
     setSaving(true);
     setStatus(null);
     try {
-      const res = await fetch(`/api/business/${businessId}/settings`, {
+      const res = await fetch(`/api/business/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, address, enableJukebox, enableQrOrders, alertSound }),

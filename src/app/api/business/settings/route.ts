@@ -1,16 +1,18 @@
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, isAdmin } from '@/lib/auth';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
-  // authorization: only admin or users of the business can read
+export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
-  if (!isAdmin(user) && user.businessId !== id) {
-    return new Response(JSON.stringify({ message: 'Forbidden' }), { status: 403 });
-  }
+
+  // allow admins to pass ?businessId to manage other businesses
+  const url = new URL(request.url);
+  const qBusinessId = url.searchParams.get('businessId');
+  const targetBusinessId = isAdmin(user) && qBusinessId ? qBusinessId : user.businessId;
+  if (!targetBusinessId) return new Response(JSON.stringify({ message: 'No business associated' }), { status: 400 });
+
   try {
-    const business = await prisma.business.findUnique({ where: { id } });
+    const business = await prisma.business.findUnique({ where: { id: targetBusinessId } });
     if (!business) return new Response(JSON.stringify({ message: 'Business not found' }), { status: 404 });
 
     const settings = {
@@ -30,20 +32,21 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
-  // authorization: only admin or users of the business can update
+export async function PUT(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
-  if (!isAdmin(user) && user.businessId !== id) {
-    return new Response(JSON.stringify({ message: 'Forbidden' }), { status: 403 });
-  }
+
+  const url = new URL(request.url);
+  const qBusinessId = url.searchParams.get('businessId');
+  const targetBusinessId = isAdmin(user) && qBusinessId ? qBusinessId : user.businessId;
+  if (!targetBusinessId) return new Response(JSON.stringify({ message: 'No business associated' }), { status: 400 });
+
   const body = await request.json().catch(() => ({}));
   const { enableJukebox, enableQrOrders, alertSound, address, phone, name } = body;
 
   try {
     const business = await prisma.business.update({
-      where: { id },
+      where: { id: targetBusinessId },
       data: {
         enableJukebox: typeof enableJukebox === 'boolean' ? enableJukebox : undefined,
         enableQrOrders: typeof enableQrOrders === 'boolean' ? enableQrOrders : undefined,
