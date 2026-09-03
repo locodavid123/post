@@ -15,8 +15,8 @@ interface Song {
 type SongRequestWithRelations = PrismaSongRequest & { requestedBy: TableSession };
 
 // En Next.js 14, params se recibe directamente como objeto (no es una Promise)
-export default function UserJukeboxPage({ params }: { params: { tableId: string } }) {
-    const { tableId } = params;
+export default function UserJukeboxPage({ params }: { params: { businessCode: string, tableId: string } }) {
+    const { businessCode, tableId } = params;
 
     const [nickname, setNickname] = useState<string | null>(null);
     const [nicknameInput, setNicknameInput] = useState('');
@@ -29,7 +29,7 @@ export default function UserJukeboxPage({ params }: { params: { tableId: string 
     // Obtiene la cola de canciones desde la API
     const fetchQueue = async () => {
         try {
-            const response = await fetch('/api/jukebox/queue');
+            const response = await fetch(`/api/jukebox/queue?businessCode=${businessCode}`);
             if (!response.ok) throw new Error('Error al obtener la cola');
             const queueData = await response.json();
             setSongQueue(queueData);
@@ -54,7 +54,7 @@ export default function UserJukeboxPage({ params }: { params: { tableId: string 
             const response = await fetch('/api/jukebox/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tableId, nickname: nicknameInput }),
+                body: JSON.stringify({ businessCode, tableId, nickname: nicknameInput }),
             });
             if (!response.ok) throw new Error('No se pudo registrar el nickname.');
             setNickname(nicknameInput);
@@ -85,7 +85,7 @@ export default function UserJukeboxPage({ params }: { params: { tableId: string 
             const response = await fetch('/api/jukebox/request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ song, tableId }),
+                body: JSON.stringify({ song, businessCode, tableId }),
             });
 
             const result = await response.json();

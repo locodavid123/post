@@ -1,20 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { song, tableId = 'admin' } = body;
+        const { song, businessCode, tableId = 'admin' } = body;
 
         if (!song || !song.id || !song.title) {
             return NextResponse.json({ error: 'Faltan datos obligatorios de la canción.' }, { status: 400 });
+        }
+
+        let businessId = '';
+        
+        if (businessCode) {
+            const business = await prisma.business.findUnique({ where: { code: businessCode } });
+            if (!business) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 });
+            businessId = business.id;
+        } else {
+            // Si viene desde el admin panel, buscamos el usuario
+            const user = await getUserFromRequest(request);
+            if (!user || !user.businessId) return NextResponse.json({ error: 'Unauthorized or no businessId' }, { status: 401 });
+            businessId = user.businessId;
         }
 
         const effectiveTableId = tableId || 'admin';
 
         // 1. Buscamos o creamos la sesión para esta mesa o para el Administrador
         let tableSession = await prisma.tableSession.findUnique({
-            where: { tableId: effectiveTableId },
+            where: { businessId_tableId: { businessId, tableId: effectiveTableId } },
         });
 
         if (!tableSession) {
@@ -28,6 +42,7 @@ export async function POST(request: NextRequest) {
                     data: {
                         tableId: effectiveTableId,
                         nickname: 'Administrador',
+                        businessId
                     },
                 });
             } else {
@@ -70,6 +85,7 @@ export async function POST(request: NextRequest) {
                     `https://img.youtube.com/vi/${song.id}/hqdefault.jpg`,
                 status: 'PENDING',
                 requestedById: tableSession.id,
+                businessId
             },
             include: {
                 requestedBy: true,

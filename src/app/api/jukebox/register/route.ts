@@ -4,20 +4,28 @@ import prisma from '@/lib/prisma'; // 1. Importamos nuestra instancia única de 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { tableId, nickname } = body;
+        const { businessCode, tableId, nickname } = body;
 
-        if (!tableId || !nickname) {
-            return NextResponse.json({ error: 'tableId y nickname son requeridos' }, { status: 400 });
+        if (!businessCode || !tableId || !nickname) {
+            return NextResponse.json({ error: 'businessCode, tableId y nickname son requeridos' }, { status: 400 });
+        }
+
+        const business = await prisma.business.findUnique({ where: { code: businessCode } });
+        if (!business) {
+            return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 });
         }
 
         // Usamos `upsert` para crear una nueva sesión si no existe,
         // o actualizar el nickname si ya existía una para esa mesa.
         const session = await prisma.tableSession.upsert({
-            where: { tableId: tableId },
-            update: { nickname: nickname },
+            where: {
+                businessId_tableId: { businessId: business.id, tableId }
+            },
+            update: { nickname },
             create: {
-                tableId: tableId,
-                nickname: nickname,
+                tableId,
+                nickname,
+                businessId: business.id
             },
         });
 

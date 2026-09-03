@@ -16,14 +16,19 @@ datasource db {
 
 model TableSession {
   id        String   @id @default(cuid())
-  tableId   String   @unique // "mesa-1", "terraza-2", etc.
+  tableId   String   // "mesa-1", "terraza-2", etc.
   nickname  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
 
   // Relaciones
   songRequests SongRequest[]
   products     TableProduct[]
+
+  @@unique([businessId, tableId])
 }
 
 model SongRequest {
@@ -37,7 +42,10 @@ model SongRequest {
 
   // Relación con la mesa que la pidió
   requestedById String
-  requestedBy   TableSession @relation(fields: [requestedById], references: [id])
+  requestedBy   TableSession @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+  
+  businessId    String
+  business      Business     @relation(fields: [businessId], references: [id])
 }
 
 // --- Modelos para la futura funcionalidad de Productos ---
@@ -46,6 +54,9 @@ model Product {
   id    String @id @default(cuid())
   name  String
   // Podrías añadir más campos como description, imageUrl, etc.
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
 
   // Relación
   tables TableProduct[]
@@ -86,6 +97,9 @@ model Business {
   alertSound     String  @default("ping")
   address        String?
 
-  users     User[]
+  users        User[]
+  tables       TableSession[]
+  songRequests SongRequest[]
+  products     Product[]
 }
 
