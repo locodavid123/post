@@ -69,6 +69,7 @@ export default function MesasPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
   // Add table modal state
   const [newCapacity, setNewCapacity] = useState(4);
@@ -95,9 +96,39 @@ export default function MesasPage() {
   const currentTable = tables.find((t) => t.id === activeTableId) ?? tables[0];
   const occupiedCount = tables.filter((t) => t.status === "occupied").length;
 
-  // Load tables and products on mount
+  // Fetch businessId on mount
   useEffect(() => {
-    const savedTables = localStorage.getItem("ecopost_tables");
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.businessId) {
+          setBusinessId(data.user.businessId);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Load tables and products on mount (once businessId is available)
+  useEffect(() => {
+    if (!businessId) return;
+
+    // Helper to get storage key with businessId prefix
+    const key = (base: string) => `ecopost_${base}_${businessId}`;
+
+    // Migrate old generic keys to new prefixed keys (one-time migration)
+    const migrateKey = (base: string) => {
+      const oldKey = `ecopost_${base}`;
+      const newKey = key(base);
+      if (!localStorage.getItem(newKey) && localStorage.getItem(oldKey)) {
+        localStorage.setItem(newKey, localStorage.getItem(oldKey)!);
+        localStorage.removeItem(oldKey);
+      }
+    };
+    migrateKey("tables");
+    migrateKey("products");
+    migrateKey("sales");
+
+    const savedTables = localStorage.getItem(key("tables"));
     if (savedTables) {
       try {
         setTables(JSON.parse(savedTables));
@@ -105,10 +136,10 @@ export default function MesasPage() {
         console.error("Error cargando mesas guardadas:", e);
       }
     } else {
-      localStorage.setItem("ecopost_tables", JSON.stringify(INITIAL_TABLES));
+      localStorage.setItem(key("tables"), JSON.stringify(INITIAL_TABLES));
     }
 
-    const savedProducts = localStorage.getItem("ecopost_products");
+    const savedProducts = localStorage.getItem(key("products"));
     if (savedProducts) {
       try {
         setAvailableProducts(JSON.parse(savedProducts));
@@ -127,18 +158,18 @@ export default function MesasPage() {
         { id: 8, name: "Agua Mineral sin Gas", category: "Bebidas", price: 2.00, stock: "disponible", description: "Agua purificada de manantial 500ml." },
       ];
       setAvailableProducts(fallbackProducts);
-      localStorage.setItem("ecopost_products", JSON.stringify(fallbackProducts));
+      localStorage.setItem(key("products"), JSON.stringify(fallbackProducts));
     }
 
     setIsLoaded(true);
-  }, []);
+  }, [businessId]);
 
   // Save to localStorage when tables change
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("ecopost_tables", JSON.stringify(tables));
+    if (isLoaded && businessId) {
+      localStorage.setItem(`ecopost_tables_${businessId}`, JSON.stringify(tables));
     }
-  }, [tables, isLoaded]);
+  }, [tables, isLoaded, businessId]);
 
   // Set form fields when active table changes
   useEffect(() => {
@@ -323,7 +354,8 @@ export default function MesasPage() {
     if (!currentTable || !currentTable.orders || currentTable.orders.length === 0) return;
     if (isCashInsufficient) return;
 
-    const savedSalesStr = localStorage.getItem("ecopost_sales");
+    const salesKey = `ecopost_sales_${businessId}`;
+    const savedSalesStr = localStorage.getItem(salesKey);
     let salesList: any[] = [];
     if (savedSalesStr) {
       try {
@@ -364,7 +396,7 @@ export default function MesasPage() {
       itemsCount: currentTable.orders.reduce((sum, i) => sum + i.quantity, 0),
     };
 
-    localStorage.setItem("ecopost_sales", JSON.stringify([newSale, ...salesList]));
+    localStorage.setItem(salesKey, JSON.stringify([newSale, ...salesList]));
 
     // Liberar la mesa
     setTables((prev) =>
