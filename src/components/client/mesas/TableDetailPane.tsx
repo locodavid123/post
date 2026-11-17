@@ -1,4 +1,16 @@
 import React from "react";
+import {
+  Users,
+  UserCheck,
+  Plus,
+  Minus,
+  CreditCard,
+  ArrowRight,
+  Trash2,
+  Utensils,
+  StickyNote,
+  Unlock,
+} from "lucide-react";
 import { Table, WAITER_OPTIONS } from "./types";
 
 interface TableDetailPaneProps {
@@ -41,10 +53,10 @@ export default function TableDetailPane({
   );
 
   return (
-    <aside className="relative rounded-3xl border border-zinc-800 bg-zinc-900/90 p-5 backdrop-blur shadow-2xl flex flex-col justify-between overflow-hidden transition-all duration-300">
+    <aside className="relative rounded-3xl border border-white/[0.08] bg-[#10131b]/95 p-5 backdrop-blur-xl shadow-2xl flex flex-col justify-between overflow-hidden transition-all duration-300">
       {/* Background glowing gradient accents */}
       <div
-        className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl pointer-events-none transition-colors duration-500 ${
+        className={`absolute top-0 right-0 w-36 h-36 rounded-full blur-3xl pointer-events-none transition-colors duration-500 ${
           isOccupied ? "bg-orange-500/15" : "bg-emerald-500/15"
         }`}
       />
@@ -53,42 +65,45 @@ export default function TableDetailPane({
       {!isOccupied ? (
         <div key="free-panel" className="flex flex-col gap-5 animate-fade-in">
           {/* Mesa Header */}
-          <div className="rounded-2xl p-4 bg-emerald-500 shadow-lg shadow-emerald-500/20 text-emerald-950">
+          <div className="rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 text-emerald-950">
             <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-widest font-extrabold text-emerald-950/70">
+              <span className="text-[10px] uppercase tracking-widest font-black text-emerald-950/80">
                 MESA DISPONIBLE
               </span>
-              <span className="text-[11px] font-bold bg-emerald-900/20 px-2.5 py-0.5 rounded-full text-emerald-950">
+              <span className="text-[11px] font-bold bg-emerald-950/20 px-2.5 py-0.5 rounded-full text-emerald-950">
                 Cap. {currentTable.capacity} pers.
               </span>
             </div>
             <h2 className="mt-1 text-4xl font-black tracking-tight">{currentTable.number}</h2>
-            <p className="text-xs font-semibold text-emerald-900/80 mt-1">
+            <p className="text-xs font-semibold text-emerald-950/80 mt-1">
               Lista para recibir comensales
             </p>
           </div>
 
           {/* Cantidad de personas */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-              Número de Personas
+            <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+              <Users size={13} className="text-orange-400" />
+              <span>Número de Personas</span>
             </label>
-            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-2">
+            <div className="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-zinc-950/70 p-2">
               <button
+                type="button"
                 onClick={() => setGuestCount(Math.max(1, guestCount - 1))}
-                className="w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold transition flex items-center justify-center text-lg"
+                className="w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold transition flex items-center justify-center hover:scale-105"
               >
-                −
+                <Minus size={15} />
               </button>
               <div className="flex items-center gap-1.5">
                 <span className="text-xl font-extrabold text-white">{guestCount}</span>
                 <span className="text-xs text-zinc-500">comensales</span>
               </div>
               <button
+                type="button"
                 onClick={() => setGuestCount(Math.min(currentTable.capacity, guestCount + 1))}
-                className="w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold transition flex items-center justify-center text-lg"
+                className="w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold transition flex items-center justify-center hover:scale-105"
               >
-                +
+                <Plus size={15} />
               </button>
             </div>
             <p className="text-[10px] text-zinc-500">
@@ -98,13 +113,14 @@ export default function TableDetailPane({
 
           {/* Selección de Mesero */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-              Mesero Asignado <span className="text-orange-400">*</span>
+            <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+              <UserCheck size={13} className="text-orange-400" />
+              <span>Mesero Asignado</span> <span className="text-orange-400">*</span>
             </label>
             <select
               value={selectedWaiter}
               onChange={(e) => setSelectedWaiter(e.target.value)}
-              className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+              className="w-full rounded-2xl border border-white/[0.08] bg-zinc-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
             >
               <option value="">Seleccionar mesero...</option>
               {WAITER_OPTIONS.map((w) => (
@@ -117,33 +133,37 @@ export default function TableDetailPane({
 
           {/* Comentario Opcional */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-              Comentario <span className="text-[11px] font-normal text-zinc-500">(opcional)</span>
+            <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+              <StickyNote size={13} className="text-zinc-500" />
+              <span>Comentario</span> <span className="text-[11px] font-normal text-zinc-500">(opcional)</span>
             </label>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={2}
               placeholder="Ej: Cumpleaños, alergias, mesa preferencial…"
-              className="w-full resize-none rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500 placeholder:text-zinc-600"
+              className="w-full resize-none rounded-2xl border border-white/[0.08] bg-zinc-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500 placeholder:text-zinc-600"
             />
           </div>
 
           {/* Botón Abrir Mesa */}
           <div className="mt-2 flex flex-col gap-2">
             <button
+              type="button"
               onClick={handleOpenTable}
               disabled={!selectedWaiter}
               className="w-full rounded-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-3.5 text-sm font-bold text-white transition shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2 transform active:scale-98"
             >
               <span>Abrir mesa</span>
-              <span>➔</span>
+              <ArrowRight size={16} />
             </button>
             <button
+              type="button"
               onClick={() => onDeleteClick(currentTable.id)}
-              className="w-full rounded-xl py-2 text-[11px] font-semibold text-zinc-500 hover:text-rose-400 transition"
+              className="w-full rounded-xl py-2 text-[11px] font-semibold text-zinc-500 hover:text-rose-400 transition flex items-center justify-center gap-1"
             >
-              Eliminar mesa {currentTable.number}
+              <Trash2 size={12} />
+              <span>Eliminar mesa {currentTable.number}</span>
             </button>
           </div>
         </div>
@@ -151,14 +171,15 @@ export default function TableDetailPane({
         /* VISTA 2: PANEL DE MESA ACTIVA */
         <div key="occupied-panel" className="flex flex-col gap-4 animate-fade-in">
           {/* Header Mesa Activa */}
-          <div className="rounded-2xl p-4 bg-gradient-to-br from-orange-500/25 via-orange-500/15 to-zinc-900 border border-orange-500/30">
+          <div className="rounded-2xl p-4 bg-gradient-to-br from-orange-500/20 via-orange-500/10 to-zinc-950 border border-orange-500/30">
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
                 <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                 MESA ACTIVA
               </span>
-              <span className="text-xs text-zinc-400 font-medium">
-                👥 {currentTable.guestCount || 1} comensales
+              <span className="text-xs text-zinc-400 font-medium flex items-center gap-1">
+                <Users size={13} className="text-orange-400" />
+                {currentTable.guestCount || 1} comensales
               </span>
             </div>
 
@@ -177,10 +198,10 @@ export default function TableDetailPane({
           </div>
 
           {/* Mesero Asignado */}
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-950/80 border border-zinc-800">
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-950/70 border border-white/[0.08]">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-orange-500/15 border border-orange-500/20 flex items-center justify-center text-sm">
-                🧑‍🍳
+              <div className="w-8 h-8 rounded-xl bg-orange-500/15 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                <UserCheck size={16} />
               </div>
               <div>
                 <p className="text-[10px] uppercase font-bold text-zinc-500">Mesero asignado</p>
@@ -195,7 +216,7 @@ export default function TableDetailPane({
           {/* Comentarios de la mesa */}
           {currentTable.comment && currentTable.comment.trim().length > 0 && (
             <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs">
-              <span className="text-base shrink-0">📝</span>
+              <StickyNote size={15} className="text-amber-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
                   Nota de la mesa:
@@ -219,8 +240,8 @@ export default function TableDetailPane({
             </div>
 
             {!currentTable.orders || currentTable.orders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 px-4 rounded-2xl border border-dashed border-zinc-800 text-center gap-2 bg-zinc-950/40">
-                <span className="text-2xl">🍽️</span>
+              <div className="flex flex-col items-center justify-center py-6 px-4 rounded-2xl border border-dashed border-white/[0.08] text-center gap-2 bg-zinc-950/40">
+                <Utensils size={24} className="text-zinc-600" />
                 <p className="text-xs text-zinc-400 font-medium">Aún no hay productos en la cuenta.</p>
                 <p className="text-[11px] text-zinc-600">Presiona el botón de abajo para registrar el pedido.</p>
               </div>
@@ -229,7 +250,7 @@ export default function TableDetailPane({
                 {currentTable.orders.map((item) => (
                   <div
                     key={item.productId}
-                    className="flex items-center justify-between p-2.5 bg-zinc-950 rounded-xl border border-zinc-850 gap-2"
+                    className="flex items-center justify-between p-2.5 bg-zinc-950/80 rounded-xl border border-white/[0.06] gap-2"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-white truncate">{item.name}</p>
@@ -241,27 +262,29 @@ export default function TableDetailPane({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 shrink-0">
+                    <div className="flex items-center gap-1 bg-zinc-900 border border-white/[0.08] rounded-lg p-0.5 shrink-0">
                       <button
+                        type="button"
                         onClick={() =>
                           handleUpdateOrderItemQuantity(item.productId, item.quantity - 1)
                         }
                         className="w-5 h-5 rounded-md hover:bg-zinc-800 text-[11px] font-bold text-zinc-400 hover:text-white transition flex items-center justify-center"
                         title="Restar o eliminar"
                       >
-                        −
+                        <Minus size={11} />
                       </button>
                       <span className="text-xs font-bold text-white min-w-4 text-center">
                         {item.quantity}
                       </span>
                       <button
+                        type="button"
                         onClick={() =>
                           handleUpdateOrderItemQuantity(item.productId, item.quantity + 1)
                         }
                         className="w-5 h-5 rounded-md hover:bg-zinc-800 text-[11px] font-bold text-zinc-400 hover:text-white transition flex items-center justify-center"
                         title="Sumar"
                       >
-                        +
+                        <Plus size={11} />
                       </button>
                     </div>
                   </div>
@@ -274,29 +297,33 @@ export default function TableDetailPane({
           <div className="mt-2 flex flex-col gap-2.5">
             {/* Botón Agregar Productos */}
             <button
+              type="button"
               onClick={openAddProductsModal}
-              className="w-full rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white px-4 py-3 text-xs font-bold transition flex items-center justify-center gap-2 shadow-md hover:border-orange-500/50"
+              className="w-full rounded-2xl bg-zinc-800/80 hover:bg-zinc-700/80 border border-white/[0.08] text-white px-4 py-3 text-xs font-bold transition flex items-center justify-center gap-2 shadow-md hover:border-orange-500/50"
             >
-              <span className="text-base leading-none text-orange-400">＋</span>
+              <Plus size={15} className="text-orange-400" />
               <span>Agregar productos</span>
             </button>
 
             {/* Botón Cierre de mesa o pagar */}
             <button
+              type="button"
               onClick={openCheckoutModal}
               disabled={!currentTable.orders || currentTable.orders.length === 0}
               className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-3.5 text-xs font-extrabold text-white transition shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
-              <span>💳</span>
+              <CreditCard size={15} />
               <span>Cierre de mesa o pagar (${tableBillSubtotal.toFixed(2)})</span>
             </button>
 
             {/* Liberar mesa sin cobrar */}
             <button
+              type="button"
               onClick={handleCloseTable}
-              className="w-full rounded-xl py-1.5 text-[11px] font-semibold text-zinc-500 hover:text-rose-400 transition"
+              className="w-full rounded-xl py-1.5 text-[11px] font-semibold text-zinc-500 hover:text-rose-400 transition flex items-center justify-center gap-1.5"
             >
-              Liberar mesa (Sin cobrar)
+              <Unlock size={12} />
+              <span>Liberar mesa (Sin cobrar)</span>
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { Search, Plus, UtensilsCrossed } from "lucide-react";
 import {
   Product,
   Category,
@@ -345,18 +346,23 @@ export default function ProductosPage() {
           <p className="text-sm text-zinc-400">Agrega, edita y gestiona el inventario de platos y bebidas del restaurante.</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
-          <input
-            type="text"
-            placeholder="Buscar por nombre o descripción..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 text-zinc-100 text-sm px-4 py-2.5 rounded-xl focus:border-orange-500 focus:outline-none w-full sm:w-64 transition-all placeholder:text-zinc-600"
-          />
+          <div className="relative flex-1 sm:w-64">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <input
+              type="text"
+              placeholder="Buscar plato o bebida..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#12151e] border border-white/[0.08] text-zinc-100 text-xs pl-9 pr-4 py-2.5 rounded-xl focus:border-orange-500 focus:outline-none transition-all placeholder:text-zinc-500"
+            />
+          </div>
           <button
+            type="button"
             onClick={handleAddClick}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-orange-500/15 whitespace-nowrap"
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-orange-500/20 whitespace-nowrap active:scale-95"
           >
-            + Agregar Producto
+            <Plus size={15} />
+            <span>Agregar Producto</span>
           </button>
         </div>
       </div>
@@ -376,12 +382,15 @@ export default function ProductosPage() {
         {/* Product Grid */}
         <div className="flex-1">
           {filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-600 gap-3 border border-zinc-800 bg-zinc-900/40 rounded-2xl">
-              <span className="text-5xl">🍔</span>
+            <div className="flex flex-col items-center justify-center py-20 text-zinc-500 gap-3 border border-white/[0.06] bg-[#12151e]/40 rounded-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-500">
+                <UtensilsCrossed size={28} />
+              </div>
               <p className="text-sm font-medium">No se encontraron productos en esta selección.</p>
               <button
+                type="button"
                 onClick={() => { setSelectedCategory("Todos"); setSearchQuery(""); }}
-                className="mt-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-sm font-semibold px-4 py-2 hover:bg-orange-500/20 transition"
+                className="mt-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-semibold px-4 py-2 hover:bg-orange-500/20 transition"
               >
                 Ver todos los productos
               </button>

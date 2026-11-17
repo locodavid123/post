@@ -3,15 +3,17 @@ import { Inter, Fira_Mono } from "next/font/google";
 import "./globals.css";
 import ConditionalHeader from "@/components/ui/ConditionalHeader";
 
-const geistSans = Inter({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Fira_Mono({
-  variable: "--font-geist-mono",
+const mono = Fira_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
   weight: "400",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -28,9 +30,9 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col font-sans bg-[#090a0f] text-zinc-100">
         <ConditionalHeader />
         {children}
       </body>

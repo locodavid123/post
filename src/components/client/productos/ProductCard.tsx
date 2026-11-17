@@ -1,4 +1,5 @@
 import React from "react";
+import { Edit3, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { Product } from "./types";
 
 interface ProductCardProps {
@@ -15,21 +16,22 @@ export default function ProductCard({
   const isAvailable = product.stock === "disponible";
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between hover:border-zinc-700 transition-all group">
+    <div className="bg-[#12151e] border border-white/[0.08] hover:border-orange-500/40 rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 group hover:shadow-xl hover:shadow-orange-500/5 hover:-translate-y-0.5">
       <div className="flex flex-col gap-3">
         {/* Header */}
         <div className="flex justify-between items-start gap-2">
-          <span className="text-xs bg-zinc-950 text-orange-400 px-2.5 py-1 rounded-full border border-zinc-850 font-semibold truncate max-w-[120px]">
+          <span className="text-xs bg-zinc-950/80 text-orange-400 px-2.5 py-1 rounded-full border border-orange-500/20 font-semibold truncate max-w-[130px]">
             {product.category}
           </span>
           <span
-            className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border shrink-0 ${
+            className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border shrink-0 flex items-center gap-1 ${
               isAvailable
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                 : "bg-rose-500/10 text-rose-400 border-rose-500/20"
             }`}
           >
-            {product.stock}
+            {isAvailable ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+            <span>{product.stock}</span>
           </span>
         </div>
 
@@ -45,22 +47,23 @@ export default function ProductCard({
       </div>
 
       {/* Price & Actions */}
-      <div className="flex justify-between items-center border-t border-zinc-850 pt-4 mt-4">
-        <span className="text-lg font-bold text-white">${product.price.toFixed(2)}</span>
-        <div className="flex gap-2">
+      <div className="flex justify-between items-center border-t border-white/[0.06] pt-4 mt-4">
+        <span className="text-xl font-black text-white">${product.price.toFixed(2)}</span>
+        <div className="flex gap-1.5">
           <button
             type="button"
             onClick={() => onEdit(product)}
-            className="text-[10px] bg-zinc-950 hover:bg-zinc-850 text-zinc-300 hover:text-white font-semibold px-3 py-1.5 rounded-lg border border-zinc-800 transition-all"
+            className="flex items-center gap-1 text-[11px] bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white font-semibold px-3 py-1.5 rounded-xl border border-white/[0.08] transition-all"
           >
-            Editar
+            <Edit3 size={12} />
+            <span>Editar</span>
           </button>
           <button
             type="button"
             onClick={() => onDelete(product.id)}
-            className="text-[10px] bg-rose-950/20 hover:bg-rose-900/40 text-rose-400 font-semibold px-3 py-1.5 rounded-lg border border-rose-900/20 transition-all"
+            className="flex items-center gap-1 text-[11px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold px-2.5 py-1.5 rounded-xl border border-rose-500/20 transition-all hover:border-rose-500/40"
           >
-            Eliminar
+            <Trash2 size={12} />
           </button>
         </div>
       </div>

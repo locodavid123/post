@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { Plus, LayoutGrid } from "lucide-react";
 import {
   Table,
   Product,
@@ -506,16 +507,16 @@ export default function MesasPage() {
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* ─── Top Tab Bar ─── */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 backdrop-blur">
+      <section className="rounded-2xl border border-white/[0.08] bg-[#12151e]/90 p-4 backdrop-blur-xl shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap gap-2">
             {["Mesas", "Mostrador", "Domicilio +", "Mostrador express"].map((tab, i) => (
               <button
                 key={tab}
-                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                className={`rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
                   i === 0
                     ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                    : "bg-zinc-950/70 text-zinc-400 hover:bg-zinc-850 hover:text-white border border-white/[0.06]"
                 }`}
               >
                 {tab}
@@ -523,11 +524,11 @@ export default function MesasPage() {
             ))}
           </div>
           <div className="flex items-center gap-3">
-            <span className="rounded-full border border-zinc-700 bg-zinc-800 px-4 py-1.5 text-xs uppercase tracking-wide text-zinc-400">
-              Salón
+            <span className="rounded-full border border-white/[0.08] bg-zinc-950 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+              Salón Principal
             </span>
-            <span className="rounded-full bg-zinc-700 px-3 py-1.5 text-xs font-bold text-white">
-              {occupiedCount}/{tables.length}
+            <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs font-black text-orange-400">
+              {occupiedCount}/{tables.length} ocupadas
             </span>
           </div>
         </div>
@@ -536,32 +537,39 @@ export default function MesasPage() {
       {/* ─── Main Grid ─── */}
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
         {/* ─── Table Grid ─── */}
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 backdrop-blur">
+        <section className="rounded-3xl border border-white/[0.08] bg-[#12151e]/90 p-6 backdrop-blur-xl shadow-xl">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-lg font-bold text-white">Mesas del Salón</h2>
-              <p className="text-xs text-zinc-500 mt-0.5">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <LayoutGrid size={18} className="text-orange-400" />
+                <span>Mesas del Salón</span>
+              </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
                 {occupiedCount} ocupadas · {tables.length - occupiedCount} disponibles
               </p>
             </div>
             <button
+              type="button"
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition shadow-lg shadow-orange-500/20"
+              className="flex items-center gap-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white transition shadow-lg shadow-orange-500/20 active:scale-95"
             >
-              <span className="text-lg leading-none">＋</span>
-              Agregar Mesa
+              <Plus size={16} />
+              <span>Agregar Mesa</span>
             </button>
           </div>
 
           {/* Grid */}
           {tables.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-600 gap-3">
-              <span className="text-5xl">🪑</span>
+            <div className="flex flex-col items-center justify-center py-20 text-zinc-500 gap-3 border border-dashed border-white/[0.08] rounded-2xl bg-zinc-950/40">
+              <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-500">
+                <LayoutGrid size={28} />
+              </div>
               <p className="text-sm font-medium">No hay mesas configuradas</p>
               <button
+                type="button"
                 onClick={() => setShowAddModal(true)}
-                className="mt-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-sm font-semibold px-4 py-2 hover:bg-orange-500/20 transition"
+                className="mt-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-semibold px-4 py-2 hover:bg-orange-500/20 transition"
               >
                 Agregar primera mesa
               </button>

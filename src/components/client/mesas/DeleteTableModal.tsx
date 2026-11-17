@@ -1,4 +1,5 @@
 import React from "react";
+import { AlertTriangle, Trash2 } from "lucide-react";
 import { Table } from "./types";
 
 interface DeleteTableModalProps {
@@ -16,16 +17,16 @@ export default function DeleteTableModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+        className="bg-[#12151e] border border-white/[0.08] rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 text-lg">
-            ⚠
+          <div className="w-10 h-10 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center text-rose-400">
+            <AlertTriangle size={20} />
           </div>
           <div>
             <h3 className="text-base font-bold text-white">Eliminar mesa</h3>
@@ -53,9 +54,10 @@ export default function DeleteTableModal({
           <button
             type="button"
             onClick={() => onConfirmDelete(tableToDelete.id)}
-            className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white py-3 text-sm font-semibold transition"
+            className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white py-3 text-sm font-semibold transition flex items-center justify-center gap-1.5"
           >
-            Eliminar
+            <Trash2 size={15} />
+            <span>Eliminar</span>
           </button>
         </div>
       </div>
