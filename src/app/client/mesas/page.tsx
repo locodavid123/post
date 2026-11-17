@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 
 interface OrderItem {
-  productId: number;
+  productId: number | string;
   name: string;
   price: number;
   quantity: number;
@@ -21,7 +21,7 @@ interface Table {
 }
 
 interface Product {
-  id: number;
+  id: number | string;
   name: string;
   category: string;
   price: number;
@@ -81,7 +81,7 @@ export default function MesasPage() {
 
   // Product addition modal state (multi-product selection)
   const [showAddProductModal, setShowAddProductModal] = useState(false);
-  const [productQuantities, setProductQuantities] = useState<Record<number, number>>({});
+  const [productQuantities, setProductQuantities] = useState<Record<string | number, number>>({});
   const [productSearch, setProductSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
 
@@ -103,9 +103,13 @@ export default function MesasPage() {
       .then((data) => {
         if (data?.user?.businessId) {
           setBusinessId(data.user.businessId);
+        } else {
+          setBusinessId("default");
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setBusinessId("default");
+      });
   }, []);
 
   // Load tables and products on mount (once businessId is available)
@@ -121,7 +125,6 @@ export default function MesasPage() {
       const newKey = key(base);
       if (!localStorage.getItem(newKey) && localStorage.getItem(oldKey)) {
         localStorage.setItem(newKey, localStorage.getItem(oldKey)!);
-        localStorage.removeItem(oldKey);
       }
     };
     migrateKey("tables");
@@ -162,6 +165,49 @@ export default function MesasPage() {
     }
 
     setIsLoaded(true);
+
+    // Sincronizar catálogo real desde PostgreSQL
+    if (businessId !== "default") {
+      fetch("/api/products")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((dbProducts) => {
+          if (Array.isArray(dbProducts) && dbProducts.length > 0) {
+            setAvailableProducts(dbProducts);
+            localStorage.setItem(key("products"), JSON.stringify(dbProducts));
+          }
+        })
+        .catch(() => {});
+    }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === key("products") && e.newValue) {
+        try {
+          setAvailableProducts(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === key("tables") && e.newValue) {
+        try {
+          setTables(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+
+    const handleFocus = () => {
+      const savedProds = localStorage.getItem(key("products"));
+      if (savedProds) {
+        try {
+          setAvailableProducts(JSON.parse(savedProds));
+        } catch {}
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [businessId]);
 
   // Save to localStorage when tables change
@@ -202,6 +248,21 @@ export default function MesasPage() {
           : t
       )
     );
+
+    // Persistir estado de la mesa en PostgreSQL
+    if (businessId && businessId !== "default" && currentTable) {
+      fetch("/api/tables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: String(currentTable.number),
+          status: "occupied",
+          waiter: selectedWaiter,
+          guestCount,
+          comment: comment.trim() || null,
+        }),
+      }).catch(() => {});
+    }
   };
 
   // Liberar / Cerrar mesa sin cobrar
@@ -220,6 +281,21 @@ export default function MesasPage() {
           : t
       )
     );
+
+    if (businessId && businessId !== "default" && currentTable) {
+      fetch("/api/tables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: String(currentTable.number),
+          status: "free",
+          waiter: null,
+          guestCount: 1,
+          comment: null,
+        }),
+      }).catch(() => {});
+    }
+
     setSelectedWaiter("");
     setGuestCount(1);
     setComment("");
@@ -251,13 +327,23 @@ export default function MesasPage() {
 
   // Gestión de Modal de Agregar Productos
   const openAddProductsModal = () => {
+    if (businessId) {
+      const savedProducts = localStorage.getItem(`ecopost_products_${businessId}`);
+      if (savedProducts) {
+        try {
+          setAvailableProducts(JSON.parse(savedProducts));
+        } catch (e) {
+          console.error("Error recargando productos al abrir modal:", e);
+        }
+      }
+    }
     setProductQuantities({});
     setProductSearch("");
     setSelectedCategory("Todas");
     setShowAddProductModal(true);
   };
 
-  const handleQuantityChange = (productId: number, delta: number) => {
+  const handleQuantityChange = (productId: number | string, delta: number) => {
     setProductQuantities((prev) => {
       const current = prev[productId] || 0;
       const next = Math.max(0, current + delta);
@@ -281,11 +367,10 @@ export default function MesasPage() {
         const currentOrders = t.orders ? [...t.orders] : [];
 
         entries.forEach(([prodIdStr, qty]) => {
-          const prodId = Number(prodIdStr);
-          const product = availableProducts.find((p) => p.id === prodId);
+          const product = availableProducts.find((p) => String(p.id) === String(prodIdStr));
           if (!product) return;
 
-          const existingIndex = currentOrders.findIndex((o) => o.productId === prodId);
+          const existingIndex = currentOrders.findIndex((o) => String(o.productId) === String(prodIdStr));
           if (existingIndex >= 0) {
             currentOrders[existingIndex] = {
               ...currentOrders[existingIndex],
@@ -309,14 +394,14 @@ export default function MesasPage() {
     setProductQuantities({});
   };
 
-  const handleUpdateOrderItemQuantity = (productId: number, newQty: number) => {
+  const handleUpdateOrderItemQuantity = (productId: number | string, newQty: number) => {
     setTables((prev) =>
       prev.map((t) => {
         if (t.id !== activeTableId) return t;
 
         const currentOrders = t.orders || [];
         const updatedOrders = currentOrders
-          .map((o) => (o.productId === productId ? { ...o, quantity: newQty } : o))
+          .map((o) => (String(o.productId) === String(productId) ? { ...o, quantity: newQty } : o))
           .filter((o) => o.quantity > 0);
 
         return { ...t, orders: updatedOrders };
@@ -398,6 +483,40 @@ export default function MesasPage() {
 
     localStorage.setItem(salesKey, JSON.stringify([newSale, ...salesList]));
 
+    // Guardar venta y liberar mesa en PostgreSQL
+    if (businessId && businessId !== "default") {
+      fetch("/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceNumber: `FAC-${nextFacNum}`,
+          table: `Mesa ${currentTable.number}`,
+          subtotal: tableBillSubtotal,
+          tip: tipAmount,
+          total: totalWithTip,
+          paymentMethod: checkoutPaymentMethod,
+          cashReceived: checkoutPaymentMethod === "Efectivo" ? numCash : undefined,
+          change: checkoutPaymentMethod === "Efectivo" ? changeAmount : undefined,
+          waiter: currentTable.waiter,
+          guestCount: currentTable.guestCount || 1,
+          saleType: "Mesas",
+          itemsCount: currentTable.orders.reduce((sum, i) => sum + i.quantity, 0),
+        }),
+      }).catch(() => {});
+
+      fetch("/api/tables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: String(currentTable.number),
+          status: "free",
+          waiter: null,
+          guestCount: 1,
+          comment: null,
+        }),
+      }).catch(() => {});
+    }
+
     // Liberar la mesa
     setTables((prev) =>
       prev.map((t) =>
@@ -437,7 +556,7 @@ export default function MesasPage() {
 
   const selectedProductsTotalItems = Object.values(productQuantities).reduce((a, b) => a + b, 0);
   const selectedProductsTotalPrice = Object.entries(productQuantities).reduce((sum, [id, qty]) => {
-    const p = availableProducts.find((item) => item.id === Number(id));
+    const p = availableProducts.find((item) => String(item.id) === String(id));
     return sum + (p ? p.price * qty : 0);
   }, 0);
 

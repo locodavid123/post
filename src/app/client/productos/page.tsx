@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 
 interface Product {
-  id: number;
+  id: number | string;
   name: string;
   category: string;
   price: number;
@@ -31,6 +31,8 @@ const INITIAL_PRODUCTS: Product[] = [
   { id: 4, name: "Refresco de Cola de la Casa", category: "Bebidas", price: 2.50, stock: "disponible", description: "Bebida refrescante carbonatada con toques naturales de cola." },
   { id: 5, name: "Volcán de Chocolate", category: "Postres", price: 6.00, stock: "agotado", description: "Bizcocho tibio de chocolate relleno de fudge derretido, servido con helado de vainilla." },
   { id: 6, name: "Aros de Cebolla Crujientes", category: "Entradas", price: 5.50, stock: "disponible", description: "Aros de cebolla rebozados en panko, servidos con alioli de ajo asado." },
+  { id: 7, name: "Alitas BBQ Glaseadas", category: "Entradas", price: 8.00, stock: "disponible", description: "6 alitas bañadas en salsa BBQ artesanal ahumada." },
+  { id: 8, name: "Agua Mineral sin Gas", category: "Bebidas", price: 2.00, stock: "disponible", description: "Agua purificada de manantial 500ml." },
 ];
 
 export default function ProductosPage() {
@@ -39,10 +41,11 @@ export default function ProductosPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
   // Modal controls
   const [showFormModal, setShowFormModal] = useState<boolean>(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
@@ -59,39 +62,129 @@ export default function ProductosPage() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryIcon, setNewCategoryIcon] = useState("🍔");
 
-  // Load from localStorage on mount
+  // Fetch businessId on mount
   useEffect(() => {
-    const savedProducts = localStorage.getItem("ecopost_products");
-    const savedCategories = localStorage.getItem("ecopost_categories");
-
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    } else {
-      localStorage.setItem("ecopost_products", JSON.stringify(INITIAL_PRODUCTS));
-    }
-
-    if (savedCategories) {
-      setCategories(JSON.parse(savedCategories));
-    } else {
-      localStorage.setItem("ecopost_categories", JSON.stringify(INITIAL_CATEGORIES));
-    }
-
-    setIsLoaded(true);
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.businessId) {
+          setBusinessId(data.user.businessId);
+        } else {
+          setBusinessId("default");
+        }
+      })
+      .catch(() => {
+        setBusinessId("default");
+      });
   }, []);
+
+  // Load from localStorage & sync from PostgreSQL once businessId is resolved
+  useEffect(() => {
+    if (!businessId) return;
+
+    const prodKey = `ecopost_products_${businessId}`;
+    const catKey = `ecopost_categories_${businessId}`;
+
+    // Migration from un-prefixed keys if present
+    if (!localStorage.getItem(prodKey) && localStorage.getItem("ecopost_products")) {
+      localStorage.setItem(prodKey, localStorage.getItem("ecopost_products")!);
+    }
+    if (!localStorage.getItem(catKey) && localStorage.getItem("ecopost_categories")) {
+      localStorage.setItem(catKey, localStorage.getItem("ecopost_categories")!);
+    }
+
+    const loadData = () => {
+      const savedProducts = localStorage.getItem(prodKey);
+      const savedCategories = localStorage.getItem(catKey);
+
+      if (savedProducts) {
+        try {
+          setProducts(JSON.parse(savedProducts));
+        } catch (e) {
+          console.error("Error cargando productos guardados:", e);
+        }
+      } else {
+        localStorage.setItem(prodKey, JSON.stringify(INITIAL_PRODUCTS));
+        setProducts(INITIAL_PRODUCTS);
+      }
+
+      if (savedCategories) {
+        try {
+          setCategories(JSON.parse(savedCategories));
+        } catch (e) {
+          console.error("Error cargando categorías guardadas:", e);
+        }
+      } else {
+        localStorage.setItem(catKey, JSON.stringify(INITIAL_CATEGORIES));
+        setCategories(INITIAL_CATEGORIES);
+      }
+    };
+
+    loadData();
+    setIsLoaded(true);
+
+    // Sincronizar catálogo desde PostgreSQL en background
+    if (businessId !== "default") {
+      fetch("/api/products")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((dbProducts) => {
+          if (Array.isArray(dbProducts) && dbProducts.length > 0) {
+            setProducts(dbProducts);
+            localStorage.setItem(prodKey, JSON.stringify(dbProducts));
+          } else {
+            // Si la base de datos está vacía, sembramos los productos iniciales
+            const savedProducts = localStorage.getItem(prodKey);
+            const toSeed: Product[] = savedProducts ? JSON.parse(savedProducts) : INITIAL_PRODUCTS;
+            toSeed.forEach((p) => {
+              fetch("/api/products", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  name: p.name,
+                  category: p.category,
+                  price: p.price,
+                  stock: p.stock,
+                  description: p.description,
+                }),
+              }).catch(() => {});
+            });
+          }
+        })
+        .catch(() => {});
+    }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === prodKey || e.key === catKey) {
+        loadData();
+      }
+    };
+
+    const handleFocus = () => {
+      loadData();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [businessId]);
 
   // Save to localStorage when products change (only after initial load)
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("ecopost_products", JSON.stringify(products));
+    if (isLoaded && businessId) {
+      localStorage.setItem(`ecopost_products_${businessId}`, JSON.stringify(products));
     }
-  }, [products, isLoaded]);
+  }, [products, isLoaded, businessId]);
 
   // Save to localStorage when categories change (only after initial load)
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("ecopost_categories", JSON.stringify(categories));
+    if (isLoaded && businessId) {
+      localStorage.setItem(`ecopost_categories_${businessId}`, JSON.stringify(categories));
     }
-  }, [categories, isLoaded]);
+  }, [categories, isLoaded, businessId]);
 
   // Helper: Reset form
   const resetForm = () => {
@@ -121,7 +214,7 @@ export default function ProductosPage() {
   };
 
   // Save product (Add or Edit)
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || price === "") return;
 
@@ -130,16 +223,34 @@ export default function ProductosPage() {
 
     if (editingProduct) {
       // Edit
+      const updatedProduct: Product = {
+        ...editingProduct,
+        name,
+        category,
+        price: numPrice,
+        stock,
+        description,
+      };
+
       setProducts((prev) =>
-        prev.map((p) =>
-          p.id === editingProduct.id
-            ? { ...p, name, category, price: numPrice, stock, description }
-            : p
-        )
+        prev.map((p) => (p.id === editingProduct.id ? updatedProduct : p))
       );
+
+      // Si existe en backend, actualizar en PostgreSQL
+      if (businessId && businessId !== "default" && typeof editingProduct.id === "string") {
+        fetch(`/api/products/${editingProduct.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, category, price: numPrice, stock, description }),
+        }).catch((err) => console.error("Error actualizando en BD:", err));
+      }
     } else {
       // Add
-      const nextId = products.length > 0 ? Math.max(...products.map((p) => p.id)) + 1 : 1;
+      const nextId =
+        products.length > 0
+          ? Math.max(...products.map((p) => (typeof p.id === "number" ? p.id : 0))) + 1
+          : 1;
+
       const newProduct: Product = {
         id: nextId,
         name,
@@ -148,6 +259,26 @@ export default function ProductosPage() {
         stock,
         description,
       };
+
+      // Guardar en PostgreSQL
+      if (businessId && businessId !== "default") {
+        try {
+          const res = await fetch("/api/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, category, price: numPrice, stock, description }),
+          });
+          if (res.ok) {
+            const created = await res.json();
+            if (created?.id) {
+              newProduct.id = created.id;
+            }
+          }
+        } catch (err) {
+          console.error("Error guardando producto en BD:", err);
+        }
+      }
+
       setProducts((prev) => [...prev, newProduct]);
     }
 
@@ -157,9 +288,15 @@ export default function ProductosPage() {
   };
 
   // Delete product
-  const handleDeleteProduct = (id: number) => {
+  const handleDeleteProduct = (id: number | string) => {
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setShowDeleteConfirm(null);
+
+    if (businessId && businessId !== "default" && typeof id === "string") {
+      fetch(`/api/products/${id}`, { method: "DELETE" }).catch((err) =>
+        console.error("Error eliminando producto de BD:", err)
+      );
+    }
   };
 
   // Add category

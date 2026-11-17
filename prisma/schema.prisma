@@ -11,25 +11,175 @@ datasource db {
   // y se pasa al constructor de PrismaClient, NO aquí en el schema.
 }
 
+// --- Modelo de Negocio (Multi-Tenant) ---
 
-// --- Modelos para la Jukebox ---
+model Business {
+  id             String   @id @default(cuid())
+  name           String
+  code           String?  @unique
+  phone          String?
+  address        String?
+  createdAt      DateTime @default(now())
+
+  // Configuración del comercio
+  enableJukebox  Boolean  @default(true)
+  enableQrOrders Boolean  @default(true)
+  alertSound     String   @default("ping")
+
+  // Relaciones
+  users          User[]
+  tables         TableSession[]
+  songRequests   SongRequest[]
+  products       Product[]
+  categories     Category[]
+  orders         Order[]
+  sales          Sale[]
+}
+
+// --- Modelo de Usuarios y Autenticación ---
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  name       String?
+  password   String
+  role       String    @default("USER") // USER, ADMIN, SUPERADMIN
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+}
+
+// --- Gestión de Mesas y Salón ---
 
 model TableSession {
-  id        String   @id @default(cuid())
-  tableId   String   // "mesa-1", "terraza-2", etc.
-  nickname  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id         String   @id @default(cuid())
+  tableId    String   // "1", "2", "mesa-1", etc.
+  nickname   String   @default("Mesa")
+  capacity   Int      @default(4)
+  status     String   @default("free") // free, occupied
+  waiter     String?
+  comment    String?
+  guestCount Int?     @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   businessId String
-  business   Business @relation(fields: [businessId], references: [id])
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Relaciones
   songRequests SongRequest[]
   products     TableProduct[]
+  orders       Order[]
 
   @@unique([businessId, tableId])
 }
+
+// --- Catálogo y Productos ---
+
+model Category {
+  id         String    @id @default(cuid())
+  name       String
+  icon       String?   @default("🍔")
+  createdAt  DateTime  @default(now())
+
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  products   Product[]
+
+  @@unique([businessId, name])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  category    String   @default("General")
+  price       Float    @default(0)
+  stock       String   @default("disponible") // disponible, agotado
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  categoryId  String?
+  categoryRef Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  tables      TableProduct[]
+  orderItems  OrderItem[]
+}
+
+model TableProduct {
+  tableSessionId String
+  productId      String
+  quantity       Int          @default(1)
+  tableSession   TableSession @relation(fields: [tableSessionId], references: [id], onDelete: Cascade)
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([tableSessionId, productId])
+}
+
+// --- Pedidos y Comandas en Mesa ---
+
+model Order {
+  id             String       @id @default(cuid())
+  orderNumber    Int          @default(autoincrement())
+  status         String       @default("PENDING") // PENDING, PREPARING, SERVED, PAID, CANCELLED
+  total          Float        @default(0)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  tableSessionId String
+  tableSession   TableSession @relation(fields: [tableSessionId], references: [id], onDelete: Cascade)
+
+  businessId     String
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  items          OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  quantity    Int      @default(1)
+  unitPrice   Float
+  notes       String?
+  productName String   // Histórico del nombre al momento del pedido
+
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+}
+
+// --- Facturación y Registro de Ventas ---
+
+model Sale {
+  id            String   @id @default(cuid())
+  invoiceNumber String   // "FAC-1001"
+  table         String   // "Mesa 1"
+  subtotal      Float    @default(0)
+  tip           Float    @default(0)
+  total         Float
+  paymentMethod String   @default("Efectivo") // Efectivo, Tarjeta, Transferencia
+  cashReceived  Float?
+  change        Float?
+  status        String   @default("Completado") // Completado, Cancelado
+  waiter        String?
+  guestCount    Int?     @default(1)
+  saleType      String?  @default("Mesas")
+  itemsCount    Int?     @default(0)
+  createdAt     DateTime @default(now())
+
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// --- Jukebox / Rockola ---
 
 model SongRequest {
   id           String   @id @default(cuid())
@@ -45,61 +195,5 @@ model SongRequest {
   requestedBy   TableSession @relation(fields: [requestedById], references: [id], onDelete: Cascade)
   
   businessId    String
-  business      Business     @relation(fields: [businessId], references: [id])
+  business      Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
-
-// --- Modelos para la futura funcionalidad de Productos ---
-
-model Product {
-  id    String @id @default(cuid())
-  name  String
-  // Podrías añadir más campos como description, imageUrl, etc.
-
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id])
-
-  // Relación
-  tables TableProduct[]
-}
-
-model TableProduct {
-  tableSessionId String
-  productId      String
-  tableSession   TableSession @relation(fields: [tableSessionId], references: [id])
-  product        Product      @relation(fields: [productId], references: [id])
-
-  @@id([tableSessionId, productId])
-}
-
-// --- Modelo de usuarios para autenticación ---
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  role      String   @default("USER") // USER, ADMIN
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  businessId String? 
-  business   Business? @relation(fields: [businessId], references: [id])
-}
-
-model Business {
-  id        String   @id @default(cuid())
-  name      String
-  code      String?  @unique
-  phone     String?
-  createdAt DateTime @default(now())
-
-  // Configuration fields
-  enableJukebox Boolean @default(true)
-  enableQrOrders Boolean @default(true)
-  alertSound     String  @default("ping")
-  address        String?
-
-  users        User[]
-  tables       TableSession[]
-  songRequests SongRequest[]
-  products     Product[]
-}
-

@@ -35,6 +35,7 @@ export default function VentasPage() {
   const [sales, setSales] = useState<Sale[]>(INITIAL_SALES);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
   // Filter States
   const todayDate = new Date();
@@ -53,23 +54,103 @@ export default function VentasPage() {
   const [filterTable, setFilterTable] = useState("Todos");
   const [filterInvoiceType, setFilterInvoiceType] = useState("Todos");
 
-  // Load sales from localStorage
+  // Fetch businessId on mount
   useEffect(() => {
-    const savedSales = localStorage.getItem("ecopost_sales");
-    if (savedSales) {
-      setSales(JSON.parse(savedSales));
-    } else {
-      localStorage.setItem("ecopost_sales", JSON.stringify(INITIAL_SALES));
-    }
-    setIsLoaded(true);
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.businessId) {
+          setBusinessId(data.user.businessId);
+        } else {
+          setBusinessId("default");
+        }
+      })
+      .catch(() => {
+        setBusinessId("default");
+      });
   }, []);
 
-  // Sync back to localStorage
+  // Load sales from localStorage once businessId is resolved
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("ecopost_sales", JSON.stringify(sales));
+    if (!businessId) return;
+
+    const salesKey = `ecopost_sales_${businessId}`;
+
+    // Migration from old un-prefixed key
+    if (!localStorage.getItem(salesKey) && localStorage.getItem("ecopost_sales")) {
+      localStorage.setItem(salesKey, localStorage.getItem("ecopost_sales")!);
     }
-  }, [sales, isLoaded]);
+
+    const loadSales = () => {
+      const savedSales = localStorage.getItem(salesKey);
+      if (savedSales) {
+        try {
+          setSales(JSON.parse(savedSales));
+        } catch (e) {
+          console.error("Error cargando ventas guardadas:", e);
+        }
+      } else {
+        localStorage.setItem(salesKey, JSON.stringify(INITIAL_SALES));
+        setSales(INITIAL_SALES);
+      }
+    };
+
+    loadSales();
+    setIsLoaded(true);
+
+    // Sincronizar ventas reales desde PostgreSQL
+    if (businessId !== "default") {
+      fetch("/api/sales")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((dbSales) => {
+          if (Array.isArray(dbSales) && dbSales.length > 0) {
+            const mappedSales: Sale[] = dbSales.map((s: any) => ({
+              id: s.invoiceNumber || s.id,
+              table: s.table,
+              total: s.total,
+              paymentMethod: s.paymentMethod,
+              date: s.createdAt,
+              status: s.status,
+              waiter: s.waiter || undefined,
+              saleType: s.saleType || "Mesas",
+              guestCount: s.guestCount || 1,
+            }));
+            setSales(mappedSales);
+            localStorage.setItem(salesKey, JSON.stringify(mappedSales));
+          }
+        })
+        .catch(() => {});
+    }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === salesKey && e.newValue) {
+        try {
+          setSales(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error("Error actualizando ventas desde storage:", err);
+        }
+      }
+    };
+
+    const handleFocus = () => {
+      loadSales();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [businessId]);
+
+  // Sync back to localStorage when sales are modified (e.g. cancelled)
+  useEffect(() => {
+    if (isLoaded && businessId) {
+      localStorage.setItem(`ecopost_sales_${businessId}`, JSON.stringify(sales));
+    }
+  }, [sales, isLoaded, businessId]);
 
   const handleCancelSale = (id: string) => {
     if (window.confirm(`¿Estás seguro de que deseas anular la factura ${id}?`)) {
