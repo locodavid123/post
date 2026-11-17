@@ -26,6 +26,127 @@ function decodeHtmlEntities(text: string): string {
         .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
 }
 
+// Catálogo curado de demostración con IDs reales de YouTube
+const DEMO_SONGS = [
+    {
+        id: 'fJ9rUzIMcZQ',
+        title: 'Queen - Bohemian Rhapsody (Official Video Remastered)',
+        artist: 'Queen Official',
+        tags: ['rock', 'queen', 'bohemian', 'classic', 'clasico', '80s', '70s'],
+    },
+    {
+        id: 'pAgnJDJN4VA',
+        title: 'AC/DC - Back In Black (Official Video)',
+        artist: 'AC/DC',
+        tags: ['rock', 'acdc', 'ac/dc', 'back in black', 'metal', 'hard rock'],
+    },
+    {
+        id: '1w7OgIMMRc4',
+        title: "Guns N' Roses - Sweet Child O' Mine (Official Music Video)",
+        artist: "Guns N' Roses",
+        tags: ['rock', 'guns n roses', 'sweet child', 'slash', 'classic'],
+    },
+    {
+        id: 'hTWKbfoikeg',
+        title: 'Nirvana - Smells Like Teen Spirit (Official Music Video)',
+        artist: 'Nirvana',
+        tags: ['rock', 'nirvana', 'grunge', 'smells like teen spirit', 'kurt cobain'],
+    },
+    {
+        id: 'lDK9QqIzhwk',
+        title: "Bon Jovi - Livin' On A Prayer (Official Music Video)",
+        artist: 'Bon Jovi',
+        tags: ['rock', 'bon jovi', 'prayer', '80s', 'classic rock'],
+    },
+    {
+        id: 'CD-E-LDc384',
+        title: 'Metallica: Enter Sandman (Official Music Video)',
+        artist: 'Metallica',
+        tags: ['rock', 'metal', 'metallica', 'enter sandman', 'heavy'],
+    },
+    {
+        id: 'Kpe_tmzp0gI',
+        title: 'Soda Stereo - De Música Ligera (El Último Concierto)',
+        artist: 'Soda Stereo',
+        tags: ['rock', 'soda stereo', 'musica ligera', 'cerati', 'rock en español', 'latino'],
+    },
+    {
+        id: 'khbDnLRT_H8',
+        title: 'Los Enanitos Verdes - Lamento Boliviano (Video Oficial)',
+        artist: 'Los Enanitos Verdes',
+        tags: ['rock', 'lamento boliviano', 'enanitos verdes', 'rock en español', 'latino'],
+    },
+    {
+        id: 'Zi_XLOBDo_Y',
+        title: 'Michael Jackson - Billie Jean (Official Video)',
+        artist: 'Michael Jackson',
+        tags: ['pop', 'michael jackson', 'billie jean', 'dance', '80s'],
+    },
+    {
+        id: 'dvgZkm1xWPE',
+        title: 'Coldplay - Viva La Vida (Official Video)',
+        artist: 'Coldplay',
+        tags: ['pop', 'coldplay', 'viva la vida', 'indie', 'alternative'],
+    },
+    {
+        id: 'A_MjCqQoLLA',
+        title: 'The Beatles - Hey Jude',
+        artist: 'The Beatles',
+        tags: ['rock', 'pop', 'beatles', 'hey jude', 'classic'],
+    },
+    {
+        id: '5NV6Rdv1a3w',
+        title: 'Daft Punk - Get Lucky (Official Audio) ft. Pharrell Williams',
+        artist: 'Daft Punk',
+        tags: ['electronic', 'dance', 'daft punk', 'get lucky', 'pop', 'disco'],
+    },
+    {
+        id: 'OPf0YbXqDm0',
+        title: 'Mark Ronson - Uptown Funk (Official Video) ft. Bruno Mars',
+        artist: 'Mark Ronson',
+        tags: ['pop', 'funk', 'uptown funk', 'bruno mars', 'dance'],
+    },
+    {
+        id: '4NRXx6U8ABQ',
+        title: 'The Weeknd - Blinding Lights (Official Music Video)',
+        artist: 'The Weeknd',
+        tags: ['pop', 'the weeknd', 'blinding lights', 'synthwave', 'hits'],
+    },
+    {
+        id: 'YXnjy5YlDwk',
+        title: 'Marc Anthony - Vivir Mi Vida (Official Video)',
+        artist: 'Marc Anthony',
+        tags: ['salsa', 'latino', 'marc anthony', 'vivir mi vida', 'tropical', 'fiesta'],
+    },
+    {
+        id: 'kJQP7kiw5Fk',
+        title: 'Luis Fonsi - Despacito ft. Daddy Yankee',
+        artist: 'Luis Fonsi',
+        tags: ['reggaeton', 'latino', 'despacito', 'daddy yankee', 'pop'],
+    },
+];
+
+function getDemoResults(query: string) {
+    const q = query.toLowerCase().trim();
+    const words = q.split(/\s+/).filter(Boolean);
+
+    // 1. Filtrar canciones que coincidan con el término
+    const matches = DEMO_SONGS.filter((s) => {
+        const fullText = `${s.title} ${s.artist} ${s.tags.join(' ')}`.toLowerCase();
+        return words.some((w) => fullText.includes(w));
+    });
+
+    const chosen = matches.length > 0 ? matches : DEMO_SONGS.slice(0, 6);
+
+    return chosen.map((item) => ({
+        id: item.id,
+        title: item.title,
+        artist: item.artist,
+        thumbnail: `https://img.youtube.com/vi/${item.id}/mqdefault.jpg`,
+        url: `https://www.youtube.com/watch?v=${item.id}`,
+    }));
+}
+
 export async function GET(request: NextRequest) {
     // 1. Obtener término de búsqueda
     const { searchParams } = new URL(request.url);
@@ -38,14 +159,26 @@ export async function GET(request: NextRequest) {
     // 2. Obtener clave de API de YouTube de las variables de entorno
     const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
-    if (!YOUTUBE_API_KEY) {
-        console.error('Error: La clave YOUTUBE_API_KEY no está configurada en .env');
-        return NextResponse.json(
-            { error: 'La clave de la API de YouTube no está configurada en el servidor (YOUTUBE_API_KEY).' },
-            { status: 500 }
+    // Si la clave no está configurada o es el valor por defecto de ejemplo,
+    // activamos el catálogo de demostración para que el Jukebox funcione sin interrupciones.
+    const isApiKeyMissingOrPlaceholder =
+        !YOUTUBE_API_KEY ||
+        YOUTUBE_API_KEY.trim() === '' ||
+        YOUTUBE_API_KEY === 'tu_youtube_api_key_aqui';
+
+    if (isApiKeyMissingOrPlaceholder) {
+        console.warn(
+            `[Jukebox] YOUTUBE_API_KEY no configurada. Retornando resultados del catálogo de demostración para "${query}".`
         );
+        const demoResults = getDemoResults(query);
+        return NextResponse.json(demoResults, {
+            headers: {
+                'x-jukebox-mode': 'demo-fallback',
+            },
+        });
     }
 
+    // 3. Consulta a la API Oficial de YouTube Data v3
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
         query.trim()
     )}&type=video&key=${YOUTUBE_API_KEY}&maxResults=6`;
@@ -57,6 +190,13 @@ export async function GET(request: NextRequest) {
         if (!response.ok || !data.items) {
             const apiError = data?.error?.message || 'Error al comunicarse con la API de YouTube';
             console.error('Error YouTube API:', data?.error || data);
+
+            // Si se agotó la cuota de la API (403), recurrir al catálogo de contingencia
+            if (response.status === 403) {
+                console.warn('[Jukebox] Cuota de YouTube API excedida (403). Usando catálogo de contingencia.');
+                return NextResponse.json(getDemoResults(query));
+            }
+
             return NextResponse.json({ error: apiError }, { status: response.status || 500 });
         }
 
@@ -75,10 +215,8 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(results);
     } catch (error) {
-        console.error('Error al realizar la búsqueda en YouTube:', error);
-        return NextResponse.json(
-            { error: 'Error interno del servidor al buscar canciones en YouTube.' },
-            { status: 500 }
-        );
+        console.error('Error al realizar la búsqueda en YouTube API, usando catálogo fallback:', error);
+        // Si hay un error de conexión con Google, entregamos el catálogo de contingencia
+        return NextResponse.json(getDemoResults(query));
     }
 }
