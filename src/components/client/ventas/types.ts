@@ -1,14 +1,26 @@
+export interface SaleItem {
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface Sale {
   id: string;
   table: string;
+  subtotal?: number;
+  tip?: number;
   total: number;
   paymentMethod: "Efectivo" | "Tarjeta" | "Transferencia";
+  cashReceived?: number;
+  change?: number;
   time?: string;
   date?: string;
   status: "Completado" | "Cancelado";
   waiter?: string;
   saleType?: string;
   guestCount?: number;
+  items?: SaleItem[];
+  itemsCount?: number;
 }
 
 export const MONTH_OPTIONS = [

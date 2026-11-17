@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Download, Ban, FileText } from "lucide-react";
+import { Search, Download, Ban, FileText, Printer } from "lucide-react";
 import { Sale } from "./types";
 
 interface SalesTableProps {
@@ -8,6 +8,7 @@ interface SalesTableProps {
   setSearchQuery: (val: string) => void;
   formatSaleDate: (sale: Sale) => string;
   onCancelSale: (id: string) => void;
+  onPrintSale?: (sale: Sale) => void;
 }
 
 export default function SalesTable({
@@ -16,6 +17,7 @@ export default function SalesTable({
   setSearchQuery,
   formatSaleDate,
   onCancelSale,
+  onPrintSale,
 }: SalesTableProps) {
   const exportToCSV = () => {
     if (sales.length === 0) return;
@@ -117,18 +119,32 @@ export default function SalesTable({
                     ${sale.total.toFixed(2)}
                   </td>
                   <td className="p-4 pr-6 text-center">
-                    {sale.status === "Completado" ? (
-                      <button
-                        type="button"
-                        onClick={() => onCancelSale(sale.id)}
-                        className="inline-flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300 font-semibold bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-2.5 py-1 rounded-lg transition"
-                      >
-                        <Ban size={12} />
-                        <span>Anular</span>
-                      </button>
-                    ) : (
-                      <span className="text-xs text-zinc-600 italic">Anulada</span>
-                    )}
+                    <div className="flex items-center justify-center gap-1.5">
+                      {onPrintSale && (
+                        <button
+                          type="button"
+                          onClick={() => onPrintSale(sale)}
+                          title="Imprimir Ticket"
+                          className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 font-semibold bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 px-2 py-1 rounded-lg transition"
+                        >
+                          <Printer size={12} />
+                          <span>Ticket</span>
+                        </button>
+                      )}
+                      {sale.status === "Completado" ? (
+                        <button
+                          type="button"
+                          onClick={() => onCancelSale(sale.id)}
+                          title="Anular Factura"
+                          className="inline-flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300 font-semibold bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-2 py-1 rounded-lg transition"
+                        >
+                          <Ban size={12} />
+                          <span>Anular</span>
+                        </button>
+                      ) : (
+                        <span className="text-xs text-zinc-600 italic">Anulada</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

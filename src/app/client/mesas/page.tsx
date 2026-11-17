@@ -12,7 +12,16 @@ import {
   CheckoutModal,
   AddTableModal,
   DeleteTableModal,
+  ReceiptModal,
+  ReceiptData,
+  TableQRModal,
 } from "@/components/client/mesas";
+import {
+  calculateSubtotal,
+  calculateTip,
+  calculateTotal,
+  validateCashPayment,
+} from "@/utils/billing";
 
 export default function MesasPage() {
   const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
@@ -44,6 +53,13 @@ export default function MesasPage() {
   const [includeTip, setIncludeTip] = useState(false);
   const [tipPercentage, setTipPercentage] = useState<number | "custom">(10);
   const [customTipAmount, setCustomTipAmount] = useState<string>("0");
+
+  // Receipt modal state
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+
+  // Table QR modal state
+  const [showQRModal, setShowQRModal] = useState(false);
 
   const currentTable = tables.find((t) => t.id === activeTableId) ?? tables[0];
   const occupiedCount = tables.filter((t) => t.status === "occupied").length;
@@ -361,30 +377,19 @@ export default function MesasPage() {
     );
   };
 
-  // Cálculos de cuenta
+  // Cálculos de cuenta usando utilidades de facturación
   const tableBillSubtotal = currentTable?.orders
-    ? currentTable.orders.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    ? calculateSubtotal(currentTable.orders)
     : 0;
 
-  const calculateTipAmount = () => {
-    if (!includeTip) return 0;
-    if (tipPercentage === "custom") {
-      const parsed = parseFloat(customTipAmount);
-      return isNaN(parsed) ? 0 : Math.max(0, parsed);
-    }
-    return (tableBillSubtotal * tipPercentage) / 100;
-  };
-
-  const tipAmount = calculateTipAmount();
-  const totalWithTip = tableBillSubtotal + tipAmount;
+  const tipAmount = calculateTip(tableBillSubtotal, includeTip, tipPercentage, customTipAmount);
+  const totalWithTip = calculateTotal(tableBillSubtotal, tipAmount);
 
   // Cálculos para pago en Efectivo (Devuelta / Cambio y Validación)
-  const parsedCash = parseFloat(cashReceived);
-  const numCash = isNaN(parsedCash) ? 0 : parsedCash;
-  const isCashInsufficient =
-    checkoutPaymentMethod === "Efectivo" &&
-    (cashReceived.trim() === "" || numCash < totalWithTip - 0.001);
-  const changeAmount = Math.max(0, numCash - totalWithTip);
+  const { numCash, isInsufficient: isCashInsufficient, change: changeAmount } = validateCashPayment(
+    totalWithTip,
+    cashReceived
+  );
 
   // Facturar / Cobrar y Cerrar Mesa
   const processCheckout = () => {
@@ -414,6 +419,26 @@ export default function MesasPage() {
 
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    // Preparar ticket térmico
+    const generatedReceipt: ReceiptData = {
+      invoiceNumber: `FAC-${nextFacNum}`,
+      table: `Mesa ${currentTable.number}`,
+      waiter: currentTable.waiter || "Mesero",
+      guestCount: currentTable.guestCount || 1,
+      date: now.toLocaleString(),
+      items: currentTable.orders.map((o) => ({
+        name: o.name,
+        price: o.price,
+        quantity: o.quantity,
+      })),
+      subtotal: tableBillSubtotal,
+      tip: tipAmount,
+      total: totalWithTip,
+      paymentMethod: checkoutPaymentMethod,
+      cashReceived: checkoutPaymentMethod === "Efectivo" ? numCash : undefined,
+      change: checkoutPaymentMethod === "Efectivo" ? changeAmount : undefined,
+    };
 
     const newSale = {
       id: `FAC-${nextFacNum}`,
@@ -493,6 +518,10 @@ export default function MesasPage() {
     setIncludeTip(false);
     setTipPercentage(10);
     setCustomTipAmount("0");
+
+    // Abrir vista previa del ticket para imprimir
+    setReceiptData(generatedReceipt);
+    setShowReceiptModal(true);
   };
 
   // Categorías de productos disponibles
@@ -622,6 +651,7 @@ export default function MesasPage() {
             openAddProductsModal={openAddProductsModal}
             handleUpdateOrderItemQuantity={handleUpdateOrderItemQuantity}
             openCheckoutModal={() => setShowCheckoutModal(true)}
+            onOpenQRModal={() => setShowQRModal(true)}
           />
         )}
       </div>
@@ -684,6 +714,23 @@ export default function MesasPage() {
         onClose={() => setShowDeleteConfirm(null)}
         onConfirmDelete={handleDeleteTable}
       />
+
+      {/* ─── MODAL: TICKET TÉRMICO / IMPRESIÓN (80mm) ─── */}
+      <ReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        receiptData={receiptData}
+      />
+
+      {/* ─── MODAL: CÓDIGO QR DE MESA (Imprimible & Descargable) ─── */}
+      {currentTable && (
+        <TableQRModal
+          isOpen={showQRModal}
+          onClose={() => setShowQRModal(false)}
+          tableNumber={currentTable.number}
+          businessCode={businessId || "demo"}
+        />
+      )}
     </div>
   );
 }

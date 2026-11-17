@@ -8,12 +8,18 @@ import {
   SalesFilterHeader,
   SalesTable,
 } from "@/components/client/ventas";
+import { ReceiptModal, ReceiptData } from "@/components/client/mesas";
+import { calculateAverages } from "@/utils/billing";
 
 export default function VentasPage() {
   const [sales, setSales] = useState<Sale[]>(INITIAL_SALES);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+
+  // Modal para reimpresión de recibo térmico
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   // Filter States
   const todayDate = new Date();
@@ -234,9 +240,34 @@ export default function VentasPage() {
   const completedActiveSales = activeSales.filter((s) => s.status === "Completado");
   const totalAmount = completedActiveSales.reduce((sum, s) => sum + s.total, 0);
   const totalSalesCount = completedActiveSales.length;
-  const averageSaleValue = totalSalesCount > 0 ? totalAmount / totalSalesCount : 0;
   const totalPersons = completedActiveSales.reduce((sum, s) => sum + (s.guestCount || 1), 0);
-  const averagePersonValue = totalPersons > 0 ? totalAmount / totalPersons : 0;
+  const { avgPerSale: averageSaleValue, avgPerGuest: averagePersonValue } = calculateAverages(
+    totalAmount,
+    totalSalesCount,
+    totalPersons
+  );
+
+  const handlePrintSale = (sale: Sale) => {
+    const data: ReceiptData = {
+      invoiceNumber: sale.id,
+      table: sale.table,
+      waiter: sale.waiter || "Mesero",
+      guestCount: sale.guestCount || 1,
+      date: formatSaleDate(sale),
+      items:
+        sale.items && sale.items.length > 0
+          ? sale.items
+          : [{ name: `Consumo ${sale.table}`, price: sale.subtotal || sale.total, quantity: 1 }],
+      subtotal: sale.subtotal || sale.total,
+      tip: sale.tip || 0,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod,
+      cashReceived: sale.cashReceived,
+      change: sale.change,
+    };
+    setReceiptData(data);
+    setShowReceiptModal(true);
+  };
 
   // Search filter
   const filteredSales = activeSales.filter((sale) => {
@@ -318,6 +349,14 @@ export default function VentasPage() {
         setSearchQuery={setSearchQuery}
         formatSaleDate={formatSaleDate}
         onCancelSale={handleCancelSale}
+        onPrintSale={handlePrintSale}
+      />
+
+      {/* ─── MODAL: TICKET TÉRMICO / REIMPRESIÓN (80mm) ─── */}
+      <ReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        receiptData={receiptData}
       />
     </div>
   );

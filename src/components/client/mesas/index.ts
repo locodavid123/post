@@ -5,3 +5,6 @@ export { default as AddProductModal } from "./AddProductModal";
 export { default as CheckoutModal } from "./CheckoutModal";
 export { default as AddTableModal } from "./AddTableModal";
 export { default as DeleteTableModal } from "./DeleteTableModal";
+export { default as ReceiptModal } from "./ReceiptModal";
+export type { ReceiptData, ReceiptItem } from "./ReceiptModal";
+export { default as TableQRModal } from "./TableQRModal";

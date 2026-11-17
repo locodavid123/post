@@ -10,6 +10,7 @@ import {
   Utensils,
   StickyNote,
   Unlock,
+  QrCode,
 } from "lucide-react";
 import { Table, WAITER_OPTIONS } from "./types";
 
@@ -28,6 +29,7 @@ interface TableDetailPaneProps {
   openAddProductsModal: () => void;
   handleUpdateOrderItemQuantity: (productId: number | string, newQty: number) => void;
   openCheckoutModal: () => void;
+  onOpenQRModal?: () => void;
 }
 
 export default function TableDetailPane({
@@ -45,6 +47,7 @@ export default function TableDetailPane({
   openAddProductsModal,
   handleUpdateOrderItemQuantity,
   openCheckoutModal,
+  onOpenQRModal,
 }: TableDetailPaneProps) {
   const isOccupied = currentTable.status === "occupied";
   const totalItemsCount = (currentTable.orders || []).reduce(
@@ -157,6 +160,16 @@ export default function TableDetailPane({
               <span>Abrir mesa</span>
               <ArrowRight size={16} />
             </button>
+            {onOpenQRModal && (
+              <button
+                type="button"
+                onClick={onOpenQRModal}
+                className="w-full rounded-2xl bg-zinc-900/90 hover:bg-zinc-800 border border-white/[0.08] hover:border-orange-500/40 text-zinc-300 hover:text-white px-3 py-2.5 text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm"
+              >
+                <QrCode size={14} className="text-orange-400" />
+                <span>Ver / Imprimir QR de Mesa</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onDeleteClick(currentTable.id)}
@@ -325,6 +338,18 @@ export default function TableDetailPane({
               <Unlock size={12} />
               <span>Liberar mesa (Sin cobrar)</span>
             </button>
+
+            {/* Ver QR de Mesa */}
+            {onOpenQRModal && (
+              <button
+                type="button"
+                onClick={onOpenQRModal}
+                className="w-full rounded-xl py-1 text-[11px] font-medium text-zinc-500 hover:text-orange-400 transition flex items-center justify-center gap-1.5"
+              >
+                <QrCode size={12} />
+                <span>Ver QR de esta mesa</span>
+              </button>
+            )}
           </div>
         </div>
       )}
