@@ -102,7 +102,13 @@ export default function MesasPage() {
     const savedTables = localStorage.getItem(key("tables"));
     if (savedTables) {
       try {
-        setTables(JSON.parse(savedTables));
+        const parsed: Table[] = JSON.parse(savedTables);
+        const uniqueNumeric = parsed
+          .filter((t) => typeof t.number === "number" && !isNaN(t.number) && t.number > 0)
+          .filter((t, index, self) => index === self.findIndex((x) => x.number === t.number))
+          .sort((a, b) => a.number - b.number);
+
+        setTables(uniqueNumeric);
       } catch (e) {
         console.error("Error cargando mesas guardadas:", e);
       }
@@ -139,9 +145,14 @@ export default function MesasPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then((dbTables) => {
         if (Array.isArray(dbTables) && dbTables.length > 0) {
-          const mappedTables: Table[] = dbTables.map((t: any) => ({
-            id: Number(t.tableId) || 1,
-            number: Number(t.tableId) || 1,
+          const salonTables = dbTables.filter((t: any) => {
+            const num = parseInt(t.tableId, 10);
+            return !isNaN(num) && num > 0 && t.tableId !== "admin";
+          });
+
+          const mappedTables: Table[] = salonTables.map((t: any) => ({
+            id: Number(t.tableId),
+            number: Number(t.tableId),
             capacity: t.capacity || 4,
             status: (t.status === "occupied" ? "occupied" : "free") as "free" | "occupied",
             waiter: t.waiter || undefined,
@@ -157,8 +168,17 @@ export default function MesasPage() {
                   }))
                 : [],
           }));
-          setTables(mappedTables);
-          localStorage.setItem(key("tables"), JSON.stringify(mappedTables));
+
+          // Evitar duplicados por número de mesa
+          const uniqueTables = mappedTables.filter(
+            (t, index, self) => index === self.findIndex((x) => x.number === t.number)
+          );
+
+          // Orden numérico exacto: 1, 2, 3, ..., 10, 11, 12
+          uniqueTables.sort((a, b) => a.number - b.number);
+
+          setTables(uniqueTables);
+          localStorage.setItem(key("tables"), JSON.stringify(uniqueTables));
         }
       })
       .catch((err) => console.error("Error cargando mesas desde BD:", err));

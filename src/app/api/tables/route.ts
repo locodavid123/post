@@ -7,8 +7,10 @@ export async function GET(request: Request) {
     const businessId = await resolveBusinessId(request);
 
     const tables = await prisma.tableSession.findMany({
-      where: { businessId },
-      orderBy: { tableId: 'asc' },
+      where: {
+        businessId,
+        tableId: { notIn: ['admin', 'barra', 'caja'] },
+      },
       include: {
         products: { include: { product: true } },
         orders: {
@@ -16,6 +18,14 @@ export async function GET(request: Request) {
           include: { items: true },
         },
       },
+    });
+
+    // Ordenamiento numérico: 1, 2, 3, ..., 10, 11, 12
+    tables.sort((a, b) => {
+      const numA = parseInt(a.tableId, 10);
+      const numB = parseInt(b.tableId, 10);
+      if (isNaN(numA) || isNaN(numB)) return a.tableId.localeCompare(b.tableId);
+      return numA - numB;
     });
 
     return NextResponse.json(tables);
