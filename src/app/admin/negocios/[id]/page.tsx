@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -84,7 +84,7 @@ export default function DetalleNegocioPage() {
   const [selectedPlanStatus, setSelectedPlanStatus] = useState("ACTIVE");
   const [savingPlan, setSavingPlan] = useState(false);
 
-  const fetchDetail = async () => {
+  const fetchDetail = useCallback(async () => {
     if (!businessId) return;
     try {
       setLoading(true);
@@ -107,11 +107,11 @@ export default function DetalleNegocioPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [businessId]);
 
   useEffect(() => {
     fetchDetail();
-  }, [businessId]);
+  }, [fetchDetail]);
 
   const handleUpdatePlan = async () => {
     setSavingPlan(true);

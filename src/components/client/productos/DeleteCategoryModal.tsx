@@ -36,7 +36,7 @@ export default function DeleteCategoryModal({
           ¿Estás seguro de que deseas eliminar esta categoría?
           <span className="block mt-2 text-zinc-500 text-xs font-normal leading-relaxed">
             Nota: Todos los productos de esta categoría se cambiarán automáticamente a la sección de{" "}
-            <strong className="text-zinc-300">"Sin Categoría"</strong> para evitar su pérdida.
+            <strong className="text-zinc-300">&quot;Sin Categoría&quot;</strong> para evitar su pérdida.
           </span>
         </p>
         <div className="flex gap-3">

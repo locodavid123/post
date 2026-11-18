@@ -1,7 +1,10 @@
 import React from "react";
 import prisma from "@/lib/prisma";
-import { CreditCard, DollarSign, CheckCircle2, XCircle, ArrowUpRight, Crown, Sparkles } from "lucide-react";
+import { CreditCard, CheckCircle2, ArrowUpRight, Crown } from "lucide-react";
 import Link from "next/link";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function FacturacionPage() {
   const [sales, subscriptions, businesses, salesAggregate, subAggregate] = await Promise.all([

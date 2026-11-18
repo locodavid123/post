@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import {
   Crown,
   Check,
-  Zap,
   ShieldCheck,
   AlertCircle,
   CheckCircle2,

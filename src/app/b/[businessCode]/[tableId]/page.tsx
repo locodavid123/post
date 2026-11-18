@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { SongRequest as PrismaSongRequest, TableSession } from "@prisma/client";
 import {
   Music,
@@ -40,7 +40,7 @@ export default function UserJukeboxPage({
   const [songQueue, setSongQueue] = useState<SongRequestWithRelations[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const fetchQueue = async () => {
+  const fetchQueue = useCallback(async () => {
     try {
       const response = await fetch(`/api/jukebox/queue?businessCode=${businessCode}`);
       if (!response.ok) throw new Error("Error al obtener la cola");
@@ -49,13 +49,13 @@ export default function UserJukeboxPage({
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [businessCode]);
 
   useEffect(() => {
     fetchQueue();
     const interval = setInterval(fetchQueue, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchQueue]);
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
