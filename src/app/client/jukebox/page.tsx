@@ -31,6 +31,21 @@ export default function JukeboxAdminPage() {
   const [queue, setQueue] = useState<SongRequestWithRelations[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [businessCode, setBusinessCode] = useState<string>("demo");
+
+  // Obtener negocio del usuario si está autenticado
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.business?.code) {
+          setBusinessCode(data.user.business.code);
+        } else if (data?.user?.businessId) {
+          setBusinessCode(data.user.businessId);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Estados para el buscador de YouTube
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,7 +58,7 @@ export default function JukeboxAdminPage() {
   // Carga la cola desde el servidor
   const fetchQueue = useCallback(async () => {
     try {
-      const res = await fetch("/api/jukebox/queue");
+      const res = await fetch(`/api/jukebox/queue?businessCode=${encodeURIComponent(businessCode)}`);
       if (res.ok) {
         const data = await res.json();
         setQueue(data);
@@ -53,7 +68,7 @@ export default function JukeboxAdminPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [businessCode]);
 
   useEffect(() => {
     fetchQueue();
@@ -160,6 +175,7 @@ export default function JukeboxAdminPage() {
             thumbnail: song.thumbnail,
           },
           tableId: "admin",
+          businessCode: businessCode || "demo",
         }),
       });
 

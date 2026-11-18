@@ -15,13 +15,36 @@ export async function POST(request: NextRequest) {
         
         if (businessCode) {
             const business = await prisma.business.findUnique({ where: { code: businessCode } });
-            if (!business) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 });
-            businessId = business.id;
-        } else {
-            // Si viene desde el admin panel, buscamos el usuario
+            if (business) {
+                businessId = business.id;
+            }
+        }
+
+        if (!businessId) {
+            // Si viene desde el admin panel o cliente logueado, buscamos el usuario
             const user = await getUserFromRequest(request);
-            if (!user || !user.businessId) return NextResponse.json({ error: 'Unauthorized or no businessId' }, { status: 401 });
-            businessId = user.businessId;
+            if (user?.businessId) {
+                businessId = user.businessId;
+            }
+        }
+
+        // Fallback: Si no hay negocio autenticado aún, auto-asociar al negocio demo
+        if (!businessId) {
+            let defaultBusiness = await prisma.business.findFirst({
+                where: { OR: [{ code: 'demo' }, { name: 'Demo' }] },
+            });
+            if (!defaultBusiness) {
+                defaultBusiness = await prisma.business.findFirst();
+            }
+            if (!defaultBusiness) {
+                defaultBusiness = await prisma.business.create({
+                    data: {
+                        name: 'EcoPOS Demo',
+                        code: 'demo',
+                    },
+                });
+            }
+            businessId = defaultBusiness.id;
         }
 
         const effectiveTableId = tableId || 'admin';
