@@ -1,11 +1,12 @@
 {
-  "platformName": "EcoPost Enterprise",
+  "platformName": "EcoPost Gastro POS",
   "supportEmail": "admin@ecopost.local",
   "currency": "COP ($)",
-  "standardPlanPrice": 35000,
-  "proPlanPrice": 50000,
+  "standardPlanPrice": 69000,
+  "proPlanPrice": 119000,
+  "trialDays": 7,
   "allowSelfRegistration": true,
   "youtubeApiKeyConfigured": true,
   "stripePublicKey": "",
-  "stripeSecretKey": "admin123"
+  "stripeSecretKey": ""
 }

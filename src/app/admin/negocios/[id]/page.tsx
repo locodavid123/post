@@ -392,10 +392,10 @@ export default function DetalleNegocioPage() {
                   onChange={(e) => setSelectedPlan(e.target.value)}
                   className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
                 >
-                  <option value="FREE">FREE (Gratuito - 6 Mesas)</option>
-                  <option value="STANDARD">STANDARD ($29.99/mes - 15 Mesas)</option>
-                  <option value="PRO">PRO ($49.99/mes - Mesas ilimitadas + Jukebox)</option>
-                  <option value="ENTERPRISE">ENTERPRISE ($99.99/mes - Multi-sucursal)</option>
+                  <option value="FREE">FREE (Prueba Gratuita 7 Días - 6 Mesas)</option>
+                  <option value="STANDARD">STANDARD ($69.000 COP/mes - 15 Mesas)</option>
+                  <option value="PRO">PRO ($119.000 COP/mes - Mesas ilimitadas + Jukebox)</option>
+                  <option value="ENTERPRISE">ENTERPRISE ($249.000 COP/mes - Multi-sucursal)</option>
                 </select>
               </div>
 

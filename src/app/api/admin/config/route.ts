@@ -8,9 +8,10 @@ const CONFIG_FILE = path.join(process.cwd(), 'system_config.json');
 const DEFAULT_CONFIG = {
   platformName: 'EcoPost Gastro POS',
   supportEmail: 'admin@ecopost.local',
-  currency: 'USD ($)',
-  standardPlanPrice: 29.99,
-  proPlanPrice: 49.99,
+  currency: 'COP ($)',
+  standardPlanPrice: 69000,
+  proPlanPrice: 119000,
+  trialDays: 7,
   allowSelfRegistration: true,
   youtubeApiKeyConfigured: Boolean(process.env.YOUTUBE_API_KEY && process.env.YOUTUBE_API_KEY !== 'TU_CLAVE_DE_YOUTUBE_AQUI'),
   stripePublicKey: '',

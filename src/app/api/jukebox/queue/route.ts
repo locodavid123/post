@@ -11,7 +11,9 @@ export async function GET(request: Request) {
         let businessId = '';
 
         if (businessCode) {
-            const business = await prisma.business.findUnique({ where: { code: businessCode } });
+            const business = await prisma.business.findFirst({
+                where: { OR: [{ code: businessCode }, { id: businessCode }] }
+            });
             if (business) {
                 businessId = business.id;
             }

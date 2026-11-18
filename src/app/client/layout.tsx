@@ -186,6 +186,19 @@ export default function ClientLayout({
         </div>
       )}
 
+      {/* Plan Expired Persistent Banner */}
+      {planStatus === "EXPIRED" && (
+        <div className="bg-amber-950/90 border-b border-amber-800/80 text-amber-200 text-xs py-2.5 px-4 font-semibold flex items-center justify-center gap-2">
+          <AlertTriangle size={15} className="text-amber-400 shrink-0" />
+          <span>
+            Tu período de prueba de 7 días o suscripción ha <strong>finalizado</strong>. Adquiere un plan para seguir gestionando mesas, comandas y ventas.
+          </span>
+          <Link href="/client/planes" className="underline ml-2 text-white hover:text-amber-100">
+            Ver Planes COP →
+          </Link>
+        </div>
+      )}
+
       {/* Main Container */}
       <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 animate-fade-in">{children}</main>
     </div>

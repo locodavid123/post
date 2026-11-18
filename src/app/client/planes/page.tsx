@@ -138,11 +138,12 @@ export default function ClientPlanesPage() {
   const plans = [
     {
       key: "FREE",
-      name: "Plan Gratuito",
+      name: "Plan Free (Prueba 7 Días)",
       priceMonthly: 0,
       priceAnnual: 0,
-      description: "Ideal para iniciar y probar las funciones base del punto de venta.",
+      description: "Prueba completa de 1 semana con todas las funciones operativas del punto de venta.",
       features: [
+        "Prueba completa durante 7 días",
         "Hasta 6 mesas simultáneas",
         "Gestión de comandas y cobros",
         "Catálogo de productos ilimitado",
@@ -154,23 +155,23 @@ export default function ClientPlanesPage() {
     {
       key: "STANDARD",
       name: "Plan Standard",
-      priceMonthly: 29.99,
-      priceAnnual: 299.99,
+      priceMonthly: 69000,
+      priceAnnual: 690000,
       description: "Para restaurantes en crecimiento que requieren mayor capacidad y pedidos QR.",
       features: [
         "Hasta 15 mesas simultáneas",
         "Autopedido por QR en mesas",
         "Facturación y reportes de caja",
         "Impresión térmica personalizada",
-        "Soporte estándar vía correo",
+        "Soporte estándar vía WhatsApp/Email",
       ],
       popular: false,
     },
     {
       key: "PRO",
       name: "Plan Pro (Recomendado)",
-      priceMonthly: 49.99,
-      priceAnnual: 499.99,
+      priceMonthly: 119000,
+      priceAnnual: 1190000,
       description: "El paquete gastronómico definitivo con Rockola Jukebox y mesas ilimitadas.",
       features: [
         "Mesas ilimitadas en el salón",
@@ -185,8 +186,8 @@ export default function ClientPlanesPage() {
     {
       key: "ENTERPRISE",
       name: "Plan Enterprise",
-      priceMonthly: 99.99,
-      priceAnnual: 999.99,
+      priceMonthly: 249000,
+      priceAnnual: 2490000,
       description: "Para cadenas gastronómicas, franquicias y locales de alto volumen.",
       features: [
         "Múltiples sucursales y franquicias",
@@ -243,7 +244,7 @@ export default function ClientPlanesPage() {
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
               {currentPlan === "FREE"
-                ? "Plan Gratuito"
+                ? "Plan Free (Prueba Gratuita 7 Días)"
                 : currentPlan === "STANDARD"
                 ? "Plan Standard"
                 : currentPlan === "PRO"
@@ -252,11 +253,19 @@ export default function ClientPlanesPage() {
             </h2>
             <p className="text-xs text-zinc-400 flex items-center gap-2 mt-0.5">
               <Calendar size={13} className="text-zinc-500" />
-              {expiresAt
-                ? `Próxima renovación: ${expiresAt.toLocaleDateString()} (${Math.ceil(
-                    (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                  )} días restantes)`
-                : "Plan sin fecha de expiración"}
+              {expiresAt ? (
+                (() => {
+                  const days = Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  if (currentPlan === "FREE") {
+                    return days > 0
+                      ? `Prueba gratuita de 1 semana: ${days} día(s) restante(s) (Vence: ${expiresAt.toLocaleDateString()})`
+                      : `Período de prueba de 7 días concluido (${expiresAt.toLocaleDateString()}). Elige un plan para seguir operando.`;
+                  }
+                  return `Próxima renovación: ${expiresAt.toLocaleDateString()} (${Math.max(0, days)} días restantes)`;
+                })()
+              ) : (
+                "Plan sin fecha de expiración"
+              )}
             </p>
           </div>
         </div>
@@ -326,10 +335,12 @@ export default function ClientPlanesPage() {
                 <p className="text-xs text-zinc-400 mt-1 min-h-[36px]">{p.description}</p>
 
                 <div className="mt-4 pb-4 border-b border-zinc-800">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-white">${price.toFixed(2)}</span>
-                    <span className="text-xs text-zinc-500">
-                      / {billingCycle === "annual" ? "año" : "mes"}
+                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                    <span className="text-2xl sm:text-3xl font-black text-white">
+                      {p.priceMonthly === 0 ? "Gratis" : `$${price.toLocaleString("es-CO")}`}
+                    </span>
+                    <span className="text-xs text-zinc-500 font-semibold">
+                      {p.priceMonthly === 0 ? "(7 Días de Prueba)" : `COP / ${billingCycle === "annual" ? "año" : "mes"}`}
                     </span>
                   </div>
                 </div>
@@ -402,7 +413,9 @@ export default function ClientPlanesPage() {
                     <td className="p-3">
                       <span className="text-emerald-400 font-bold">● {sub.status}</span>
                     </td>
-                    <td className="p-3 pr-6 text-right font-bold text-white">${sub.amount.toFixed(2)}</td>
+                    <td className="p-3 pr-6 text-right font-bold text-white">
+                      ${sub.amount.toLocaleString("es-CO")} COP
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -430,20 +443,19 @@ export default function ClientPlanesPage() {
                 <div>
                   <p className="text-xs text-zinc-400 font-semibold uppercase">Total a Facturar</p>
                   <p className="text-2xl font-black text-white mt-0.5">
-                    $
                     {selectedPlan === "FREE"
-                      ? "0.00"
+                      ? "$0 COP (7 Días)"
                       : selectedPlan === "STANDARD"
                       ? billingCycle === "annual"
-                        ? "299.99"
-                        : "29.99"
+                        ? "$690.000 COP"
+                        : "$69.000 COP"
                       : selectedPlan === "PRO"
                       ? billingCycle === "annual"
-                        ? "499.99"
-                        : "49.99"
+                        ? "$1.190.000 COP"
+                        : "$119.000 COP"
                       : billingCycle === "annual"
-                      ? "999.99"
-                      : "99.99"}
+                      ? "$2.490.000 COP"
+                      : "$249.000 COP"}
                   </p>
                 </div>
                 <span className="text-xs text-orange-400 font-mono bg-orange-500/10 px-2 py-1 rounded border border-orange-500/20">

@@ -61,7 +61,7 @@ export default async function FacturacionPage() {
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col justify-between">
           <div>
             <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Recaudación por Suscripciones</p>
-            <p className="text-3xl font-extrabold text-white mt-2">${totalSubBilled.toFixed(2)}</p>
+            <p className="text-3xl font-extrabold text-white mt-2">${totalSubBilled.toLocaleString("es-CO")} COP</p>
           </div>
           <p className="text-xs text-amber-400 mt-4 font-medium flex items-center gap-1">
             <Crown size={13} />
@@ -170,7 +170,7 @@ export default async function FacturacionPage() {
                       </span>
                     </td>
                     <td className="p-4 pr-6 text-right font-bold text-white">
-                      ${sub.amount.toFixed(2)}
+                      ${sub.amount.toLocaleString("es-CO")} COP
                     </td>
                   </tr>
                 ))}

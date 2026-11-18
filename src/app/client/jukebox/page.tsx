@@ -42,7 +42,7 @@ export default function JukeboxAdminPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.user?.business) {
-          setBusinessCode(data.user.business.code || data.user.businessId || "demo");
+          setBusinessCode(data.user.business.code || data.user.business.id || data.user.businessId || "demo");
           setBusinessPlan(data.user.business.plan || "FREE");
         } else if (data?.user?.businessId) {
           setBusinessCode(data.user.businessId);

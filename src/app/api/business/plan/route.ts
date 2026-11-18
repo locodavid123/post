@@ -59,15 +59,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Plan no válido' }, { status: 400 });
     }
 
-    // Precios por defecto o según configuración
+    // Precios estándar en Pesos Colombianos (COP)
     let amount = 0;
-    if (plan === 'STANDARD') amount = billingCycle === 'annual' ? 299.99 : 29.99;
-    if (plan === 'PRO') amount = billingCycle === 'annual' ? 499.99 : 49.99;
-    if (plan === 'ENTERPRISE') amount = billingCycle === 'annual' ? 999.99 : 99.99;
+    if (plan === 'STANDARD') amount = billingCycle === 'annual' ? 690000 : 69000;
+    if (plan === 'PRO') amount = billingCycle === 'annual' ? 1190000 : 119000;
+    if (plan === 'ENTERPRISE') amount = billingCycle === 'annual' ? 2490000 : 249000;
 
     const now = new Date();
     const periodEnd = new Date(now);
-    if (billingCycle === 'annual') {
+    if (plan === 'FREE') {
+      // 1 semana (7 días) de prueba gratuita
+      periodEnd.setDate(periodEnd.getDate() + 7);
+    } else if (billingCycle === 'annual') {
       periodEnd.setFullYear(periodEnd.getFullYear() + 1);
     } else {
       periodEnd.setDate(periodEnd.getDate() + 30);
@@ -80,7 +83,7 @@ export async function POST(request: Request) {
         plan,
         planStatus: 'ACTIVE',
         billingCycle,
-        planExpiresAt: plan === 'FREE' ? null : periodEnd,
+        planExpiresAt: periodEnd,
         // Al adquirir PRO o ENTERPRISE, se habilita Jukebox automáticamente
         enableJukebox: plan === 'PRO' || plan === 'ENTERPRISE' ? true : undefined,
       },

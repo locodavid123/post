@@ -37,6 +37,8 @@ export async function POST(request: Request) {
     }
 
     const code = `biz-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const trialExpiresAt = new Date();
+    trialExpiresAt.setDate(trialExpiresAt.getDate() + 7);
 
     const business = await prisma.business.create({
       data: {
@@ -46,6 +48,10 @@ export async function POST(request: Request) {
         enableJukebox: enableJukebox !== undefined ? Boolean(enableJukebox) : true,
         enableQrOrders: enableQrOrders !== undefined ? Boolean(enableQrOrders) : true,
         code,
+        plan: 'FREE',
+        planStatus: 'ACTIVE',
+        planExpiresAt: trialExpiresAt,
+        billingCycle: 'monthly',
       },
     });
 

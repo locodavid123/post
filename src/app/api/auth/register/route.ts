@@ -47,14 +47,22 @@ export async function POST(request: Request) {
     }
 
     if (!businessId) {
-      // Cada nuevo usuario registrado obtiene su propio comercio nuevo e independiente
+      // Cada nuevo usuario registrado obtiene su propio comercio con 1 semana (7 días) de prueba gratuita
       const finalBizName = businessName?.trim() || `Restaurante de ${resolvedName || 'Nuevo Usuario'}`;
       const code = `biz-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      const trialExpiresAt = new Date();
+      trialExpiresAt.setDate(trialExpiresAt.getDate() + 7);
+
       const b = await prisma.business.create({
         data: {
           name: finalBizName,
           phone: phone || null,
           code,
+          plan: 'FREE',
+          planStatus: 'ACTIVE',
+          planExpiresAt: trialExpiresAt,
+          billingCycle: 'monthly',
         },
       });
       businessId = b.id;
