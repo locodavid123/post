@@ -75,7 +75,7 @@ export default async function FacturacionPage() {
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col justify-between">
           <div>
             <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Facturado en Locales (POS)</p>
-            <p className="text-3xl font-extrabold text-emerald-400 mt-2">${totalSalesBilled.toFixed(2)}</p>
+            <p className="text-3xl font-extrabold text-emerald-400 mt-2">${totalSalesBilled.toLocaleString("es-CO")} COP</p>
           </div>
           <p className="text-xs text-zinc-400 mt-4 font-medium">{completedSalesCount} ventas de comida registradas</p>
         </div>
@@ -110,7 +110,7 @@ export default async function FacturacionPage() {
                   <p className="text-xs text-zinc-500">{b._count.sales} ventas registradas</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-extrabold text-orange-400">${bizTotal.toFixed(2)}</p>
+                  <p className="text-sm font-extrabold text-orange-400">${bizTotal.toLocaleString("es-CO")} COP</p>
                   <Link
                     href={`/admin/negocios/${b.id}`}
                     className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-0.5 justify-end mt-0.5"
@@ -164,7 +164,7 @@ export default async function FacturacionPage() {
                     <td className="p-4 text-xs font-bold text-orange-400">{sub.plan}</td>
                     <td className="p-4 text-xs capitalize text-zinc-400">{sub.billingCycle}</td>
                     <td className="p-4 text-xs text-zinc-500">
-                      {new Date(sub.createdAt).toLocaleString()}
+                      {new Date(sub.createdAt).toLocaleString("es-CO")}
                     </td>
                     <td className="p-4 text-xs text-zinc-300">{sub.paymentMethod}</td>
                     <td className="p-4 text-xs">
@@ -173,7 +173,7 @@ export default async function FacturacionPage() {
                       </span>
                     </td>
                     <td className="p-4 pr-6 text-right font-bold text-white">
-                      ${sub.amount.toLocaleString("es-CO")} COP
+                      ${(sub.amount || 0).toLocaleString("es-CO")} COP
                     </td>
                   </tr>
                 ))}
@@ -218,7 +218,7 @@ export default async function FacturacionPage() {
                     </td>
                     <td className="p-4 text-xs text-zinc-400">{sale.table}</td>
                     <td className="p-4 text-xs text-zinc-500">
-                      {new Date(sale.createdAt).toLocaleString()}
+                      {new Date(sale.createdAt).toLocaleString("es-CO")}
                     </td>
                     <td className="p-4 text-xs text-zinc-300">{sale.paymentMethod}</td>
                     <td className="p-4 text-xs">
@@ -231,7 +231,7 @@ export default async function FacturacionPage() {
                       </span>
                     </td>
                     <td className="p-4 pr-6 text-right font-bold text-white">
-                      ${sale.total.toFixed(2)}
+                      ${(sale.total || 0).toLocaleString("es-CO")} COP
                     </td>
                   </tr>
                 ))}
