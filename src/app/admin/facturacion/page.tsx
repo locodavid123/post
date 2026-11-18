@@ -159,16 +159,47 @@ export default async function FacturacionPage() {
                       {sub.invoiceNumber}
                     </td>
                     <td className="p-4 text-zinc-200 font-medium">
-                      {sub.business?.name || "Local sin nombre"}
+                      {sub.business ? (
+                        <Link
+                          href={`/admin/negocios/${sub.business.id}`}
+                          className="hover:text-orange-400 transition underline underline-offset-4"
+                        >
+                          {sub.business.name}
+                        </Link>
+                      ) : (
+                        "Local sin nombre"
+                      )}
                     </td>
-                    <td className="p-4 text-xs font-bold text-orange-400">{sub.plan}</td>
+                    <td className="p-4 text-xs">
+                      <span
+                        className={`font-extrabold uppercase px-2 py-0.5 rounded-md text-[10px] border ${
+                          sub.plan === "PRO"
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                            : sub.plan === "STANDARD"
+                            ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                            : sub.plan === "ENTERPRISE"
+                            ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                            : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                        }`}
+                      >
+                        {sub.plan}
+                      </span>
+                    </td>
                     <td className="p-4 text-xs capitalize text-zinc-400">{sub.billingCycle}</td>
                     <td className="p-4 text-xs text-zinc-500">
                       {new Date(sub.createdAt).toLocaleString("es-CO")}
                     </td>
                     <td className="p-4 text-xs text-zinc-300">{sub.paymentMethod}</td>
                     <td className="p-4 text-xs">
-                      <span className="text-emerald-400 font-semibold inline-flex items-center gap-1">
+                      <span
+                        className={`font-semibold inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border ${
+                          sub.status === "PAID"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : sub.status === "PENDING"
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                            : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                        }`}
+                      >
                         ● {sub.status}
                       </span>
                     </td>
@@ -214,7 +245,16 @@ export default async function FacturacionPage() {
                       {sale.invoiceNumber}
                     </td>
                     <td className="p-4 text-zinc-200 font-medium">
-                      {sale.business?.name || "Local sin nombre"}
+                      {sale.business ? (
+                        <Link
+                          href={`/admin/negocios/${sale.business.id}`}
+                          className="hover:text-orange-400 transition underline underline-offset-4"
+                        >
+                          {sale.business.name}
+                        </Link>
+                      ) : (
+                        "Local sin nombre"
+                      )}
                     </td>
                     <td className="p-4 text-xs text-zinc-400">{sale.table}</td>
                     <td className="p-4 text-xs text-zinc-500">
