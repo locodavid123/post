@@ -112,18 +112,7 @@ export default function MesasPage() {
         console.error("Error cargando productos:", e);
       }
     } else {
-      const fallbackProducts: Product[] = [
-        { id: 1, name: "Hamburguesa EcoClassic", category: "Hamburguesas", price: 12.50, stock: "disponible", description: "Carne de res premium 150g, queso cheddar derretido, lechuga orgánica, tomate fresco y salsa especial." },
-        { id: 2, name: "Papas Fritas Crujientes", category: "Entradas", price: 4.50, stock: "disponible", description: "Papas cortadas a mano con sal marina y pimentón ahumado." },
-        { id: 3, name: "Cerveza Artesanal IPA", category: "Bebidas", price: 5.00, stock: "disponible", description: "Cerveza artesanal de la casa, notas intensas de lúpulo y cítricos." },
-        { id: 4, name: "Refresco de Cola de la Casa", category: "Bebidas", price: 2.50, stock: "disponible", description: "Bebida refrescante carbonatada con toques naturales de cola." },
-        { id: 5, name: "Volcán de Chocolate", category: "Postres", price: 6.00, stock: "disponible", description: "Bizcocho tibio de chocolate relleno de fudge derretido con helado de vainilla." },
-        { id: 6, name: "Aros de Cebolla Crujientes", category: "Entradas", price: 5.50, stock: "disponible", description: "Aros de cebolla rebozados en panko con alioli de ajo asado." },
-        { id: 7, name: "Alitas BBQ Glaseadas", category: "Entradas", price: 8.00, stock: "disponible", description: "6 alitas bañadas en salsa BBQ artesanal ahumada." },
-        { id: 8, name: "Agua Mineral sin Gas", category: "Bebidas", price: 2.00, stock: "disponible", description: "Agua purificada de manantial 500ml." },
-      ];
-      setAvailableProducts(fallbackProducts);
-      localStorage.setItem(key("products"), JSON.stringify(fallbackProducts));
+      setAvailableProducts([]);
     }
 
     setIsLoaded(true);
@@ -175,7 +164,7 @@ export default function MesasPage() {
     fetch("/api/products")
       .then((res) => (res.ok ? res.json() : null))
       .then((dbProducts) => {
-        if (Array.isArray(dbProducts) && dbProducts.length > 0) {
+        if (Array.isArray(dbProducts)) {
           setAvailableProducts(dbProducts);
           localStorage.setItem(key("products"), JSON.stringify(dbProducts));
         }

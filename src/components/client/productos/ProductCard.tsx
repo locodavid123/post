@@ -48,7 +48,9 @@ export default function ProductCard({
 
       {/* Price & Actions */}
       <div className="flex justify-between items-center border-t border-white/[0.06] pt-4 mt-4">
-        <span className="text-xl font-black text-white">${product.price.toFixed(2)}</span>
+        <span className="text-xl font-black text-white">
+          ${Number(product.price).toLocaleString("es-CO")}
+        </span>
         <div className="flex gap-1.5">
           <button
             type="button"

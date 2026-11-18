@@ -77,8 +77,7 @@ export default function ProductosPage() {
           console.error("Error cargando productos guardados:", e);
         }
       } else {
-        localStorage.setItem(prodKey, JSON.stringify(INITIAL_PRODUCTS));
-        setProducts(INITIAL_PRODUCTS);
+        setProducts([]);
       }
 
       if (savedCategories) {
@@ -100,7 +99,7 @@ export default function ProductosPage() {
     fetch("/api/products")
       .then((res) => (res.ok ? res.json() : null))
       .then((dbProducts) => {
-        if (Array.isArray(dbProducts) && dbProducts.length > 0) {
+        if (Array.isArray(dbProducts)) {
           const mapped: Product[] = dbProducts.map((p: any) => ({
             id: p.id,
             name: p.name,
@@ -352,7 +351,29 @@ export default function ProductosPage() {
 
         {/* Product Grid */}
         <div className="flex-1">
-          {filteredProducts.length === 0 ? (
+          {products.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-zinc-500 gap-3 border border-white/[0.06] bg-[#12151e]/40 rounded-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                <UtensilsCrossed size={28} />
+              </div>
+              <p className="text-base font-bold text-white">Tu catálogo está vacío</p>
+              <p className="text-xs text-zinc-400 max-w-sm text-center">
+                Aún no tienes platos o bebidas registrados. Agrega tu primer producto para empezar a comandar en el salón.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingProduct(null);
+                  resetForm();
+                  setShowFormModal(true);
+                }}
+                className="mt-2 flex items-center gap-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2.5 transition shadow-lg shadow-orange-500/20"
+              >
+                <Plus size={15} />
+                <span>Agregar Primer Producto</span>
+              </button>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-zinc-500 gap-3 border border-white/[0.06] bg-[#12151e]/40 rounded-2xl">
               <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-500">
                 <UtensilsCrossed size={28} />
