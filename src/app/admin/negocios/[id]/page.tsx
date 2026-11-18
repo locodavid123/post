@@ -627,22 +627,64 @@ export default function DetalleNegocioPage() {
                       <th className="p-2.5">Recibo</th>
                       <th className="p-2.5">Plan</th>
                       <th className="p-2.5">Fecha</th>
-                      <th className="p-2.5">Método</th>
+                      <th className="p-2.5">Método / Ref</th>
                       <th className="p-2.5">Estado</th>
                       <th className="p-2.5 text-right">Importe</th>
+                      <th className="p-2.5 text-center">Acción</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800">
-                    {business.subscriptions.map((sub) => (
+                    {business.subscriptions.map((sub: any) => (
                       <tr key={sub.id} className="hover:bg-zinc-950/40">
                         <td className="p-2.5 font-semibold text-white font-mono">{sub.invoiceNumber}</td>
                         <td className="p-2.5 font-bold text-orange-400">{sub.plan}</td>
-                        <td className="p-2.5 text-zinc-500">{new Date(sub.createdAt).toLocaleDateString()}</td>
-                        <td className="p-2.5">{sub.paymentMethod}</td>
+                        <td className="p-2.5 text-zinc-500">{new Date(sub.createdAt).toLocaleDateString("es-CO")}</td>
                         <td className="p-2.5">
-                          <span className="text-emerald-400 font-semibold">● {sub.status}</span>
+                          <div>
+                            <span>{sub.paymentMethod}</span>
+                            {sub.referenceNumber && (
+                              <p className="text-[10px] font-mono text-amber-300">Ref: {sub.referenceNumber}</p>
+                            )}
+                          </div>
                         </td>
-                        <td className="p-2.5 text-right font-bold text-white">${sub.amount.toFixed(2)}</td>
+                        <td className="p-2.5">
+                          {sub.status === "PAID" ? (
+                            <span className="text-emerald-400 font-semibold text-[11px]">● Aprobado</span>
+                          ) : sub.status === "PENDING" ? (
+                            <span className="text-amber-400 font-semibold text-[11px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                              ⏳ Pendiente
+                            </span>
+                          ) : (
+                            <span className="text-rose-400 font-semibold text-[11px]">✕ Rechazado</span>
+                          )}
+                        </td>
+                        <td className="p-2.5 text-right font-bold text-white">
+                          ${Number(sub.amount || 0).toLocaleString("es-CO")} COP
+                        </td>
+                        <td className="p-2.5 text-center">
+                          {sub.status === "PENDING" && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!confirm(`¿Aprobar comprobante ${sub.invoiceNumber} y activar plan para este comercio?`)) return;
+                                try {
+                                  const res = await fetch(`/api/admin/subscriptions/${sub.id}/approve`, { method: "POST" });
+                                  if (res.ok) {
+                                    setNotification({ type: "success", message: `Comprobante ${sub.invoiceNumber} aprobado con éxito.` });
+                                    fetchDetail();
+                                  } else {
+                                    setNotification({ type: "error", message: "Error al aprobar comprobante." });
+                                  }
+                                } catch {
+                                  setNotification({ type: "error", message: "Error de red." });
+                                }
+                              }}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] transition"
+                            >
+                              Aprobar
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

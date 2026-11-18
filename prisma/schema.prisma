@@ -208,17 +208,19 @@ model SongRequest {
 // --- Facturas y Cobros de Suscripción (Planes) ---
 
 model SubscriptionInvoice {
-  id            String   @id @default(cuid())
-  invoiceNumber String   // "SUB-1001"
-  plan          String   // "FREE", "STANDARD", "PRO", "ENTERPRISE"
-  amount        Float    // 29.99, 49.99
-  billingCycle  String   @default("monthly") // monthly, annual
-  paymentMethod String   @default("Tarjeta") // Tarjeta, Transferencia, AdminManual
-  status        String   @default("PAID")    // PAID, FAILED, PENDING
-  periodStart   DateTime @default(now())
-  periodEnd     DateTime
-  createdAt     DateTime @default(now())
+  id              String   @id @default(cuid())
+  invoiceNumber   String   // "SUB-1001"
+  plan            String   // "FREE", "STANDARD", "PRO", "ENTERPRISE"
+  amount          Float    // 69000, 119000, 249000
+  billingCycle    String   @default("monthly") // monthly, annual
+  paymentMethod   String   @default("Tarjeta") // Wompi, Nequi, Bancolombia, Transferencia, AdminManual
+  status          String   @default("PAID")    // PAID, FAILED, PENDING, REJECTED
+  referenceNumber String?  // Número de comprobante Nequi/Bancolombia o Transaction ID Wompi
+  notes           String?  // Notas del cliente o motivo de rechazo
+  periodStart     DateTime @default(now())
+  periodEnd       DateTime
+  createdAt       DateTime @default(now())
 
-  businessId    String
-  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }

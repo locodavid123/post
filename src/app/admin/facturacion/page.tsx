@@ -1,5 +1,6 @@
-import React from "react";
-import prisma from "@/lib/prisma";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import {
   CreditCard,
   CheckCircle2,
@@ -9,51 +10,146 @@ import {
   Building2,
   Clock,
   TrendingUp,
+  AlertTriangle,
+  XCircle,
+  RefreshCw,
+  Copy,
+  Smartphone,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+interface SubscriptionInvoice {
+  id: string;
+  invoiceNumber: string;
+  plan: string;
+  amount: number;
+  billingCycle: string;
+  paymentMethod: string;
+  status: string;
+  referenceNumber?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  business?: {
+    id: string;
+    name: string;
+    code: string | null;
+    plan: string;
+    planStatus: string;
+  } | null;
+}
 
-export default async function FacturacionPage() {
-  const [subscriptions, businesses, subAggregate, activePaidSubsCount, freeTrialsCount] = await Promise.all([
-    prisma.subscriptionInvoice.findMany({
-      take: 100,
-      orderBy: { createdAt: "desc" },
-      include: {
-        business: { select: { id: true, name: true, code: true, plan: true } },
-      },
-    }),
-    prisma.business.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        code: true,
-        plan: true,
-        planStatus: true,
-        billingCycle: true,
-        planExpiresAt: true,
-        subscriptions: {
-          select: { id: true, amount: true, status: true, plan: true, createdAt: true },
-        },
-      },
-    }),
-    prisma.subscriptionInvoice.aggregate({
-      _sum: { amount: true },
-      _count: { id: true },
-      where: { status: "PAID" },
-    }),
-    prisma.business.count({
-      where: { planStatus: "ACTIVE", plan: { not: "FREE" } },
-    }),
-    prisma.business.count({
-      where: { plan: "FREE" },
-    }),
-  ]);
+interface BusinessItem {
+  id: string;
+  name: string;
+  code: string | null;
+  plan: string;
+  planStatus: string;
+  billingCycle: string;
+  planExpiresAt: string | null;
+  subscriptions: { id: string; amount: number; status: string; plan: string; createdAt: string }[];
+}
 
-  const totalSubBilled = subAggregate._sum.amount || 0;
-  const totalPaidInvoicesCount = subAggregate._count.id || 0;
+export default function FacturacionPage() {
+  const [subscriptions, setSubscriptions] = useState<SubscriptionInvoice[]>([]);
+  const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
+  const [totalSubBilled, setTotalSubBilled] = useState(0);
+  const [totalPaidInvoicesCount, setTotalPaidInvoicesCount] = useState(0);
+  const [activePaidSubsCount, setActivePaidSubsCount] = useState(0);
+  const [freeTrialsCount, setFreeTrialsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const fetchSubscriptions = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/subscriptions");
+      if (res.ok) {
+        const data = await res.json();
+        setSubscriptions(data.subscriptions || []);
+        setBusinesses(data.businesses || []);
+        setTotalSubBilled(data.totalSubBilled || 0);
+        setTotalPaidInvoicesCount(data.totalPaidInvoicesCount || 0);
+        setActivePaidSubsCount(data.activePaidSubsCount || 0);
+        setFreeTrialsCount(data.freeTrialsCount || 0);
+      }
+    } catch (err) {
+      console.error("Error cargando suscripciones:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubscriptions();
+  }, []);
+
+  const handleApprove = async (invoiceId: string, invoiceNumber: string, businessName: string) => {
+    if (!confirm(`¿Deseas validar y aprobar el comprobante "${invoiceNumber}" de "${businessName}"? Esto activará de inmediato el plan para este restaurante.`)) {
+      return;
+    }
+
+    setProcessingId(invoiceId);
+    setNotification(null);
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${invoiceId}/approve`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotification({
+          type: "success",
+          message: data.message || `Comprobante ${invoiceNumber} aprobado con éxito.`,
+        });
+        fetchSubscriptions();
+      } else {
+        setNotification({ type: "error", message: data.message || "Error al aprobar comprobante." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de red al conectar con el servidor." });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (invoiceId: string, invoiceNumber: string) => {
+    const reason = prompt("Ingresa el motivo del rechazo del comprobante (opcional):", "Fondos no encontrados en la cuenta");
+    if (reason === null) return;
+
+    setProcessingId(invoiceId);
+    setNotification(null);
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${invoiceId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotification({
+          type: "success",
+          message: data.message || `Comprobante ${invoiceNumber} marcado como rechazado.`,
+        });
+        fetchSubscriptions();
+      } else {
+        setNotification({ type: "error", message: data.message || "Error al rechazar comprobante." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de red al conectar con el servidor." });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const copyRef = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const pendingInvoices = subscriptions.filter((s) => s.status === "PENDING");
 
   // Ingresos recaudados por plan
   const standardRevenue = subscriptions
@@ -75,16 +171,157 @@ export default async function FacturacionPage() {
 
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto">
-      {/* Title */}
-      <div className="flex flex-col gap-1">
-        <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
-          <CreditCard className="text-orange-500" />
-          Facturación y Cobros de Planes
-        </h2>
-        <p className="text-sm text-zinc-400">
-          Control de recaudación de suscripciones SaaS, membresías recurrentes y comprobantes de pago de la plataforma.
-        </p>
+      {/* Title & Refresh */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+            <CreditCard className="text-orange-500" />
+            Facturación y Cobros de Planes
+          </h2>
+          <p className="text-sm text-zinc-400">
+            Control de recaudación SaaS en Pesos Colombianos (COP), validación de transferencias y comprobantes de la plataforma.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={fetchSubscriptions}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition disabled:opacity-50"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin text-orange-400" : ""} />
+          <span>{loading ? "Actualizando..." : "Refrescar"}</span>
+        </button>
       </div>
+
+      {/* Notifications */}
+      {notification && (
+        <div
+          className={`p-4 rounded-xl flex items-center justify-between text-sm ${
+            notification.type === "success"
+              ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+              : "bg-rose-500/10 border border-rose-500/30 text-rose-400"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {notification.type === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+            <span>{notification.message}</span>
+          </div>
+          <button onClick={() => setNotification(null)} className="text-xs underline ml-4">
+            Cerrar
+          </button>
+        </div>
+      )}
+
+      {/* SECCIÓN ESPECIAL: COMPROBANTES PENDIENTES DE VALIDACIÓN (MODO HÍBRIDO) */}
+      {pendingInvoices.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-zinc-900 to-zinc-900 border-2 border-amber-500/40 rounded-3xl p-6 shadow-2xl shadow-amber-950/40 flex flex-col gap-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-amber-500/20 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 animate-pulse">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>Transferencias Pendientes de Validación</span>
+                  <span className="bg-amber-500 text-zinc-950 font-black text-xs px-2 py-0.5 rounded-full">
+                    {pendingInvoices.length} {pendingInvoices.length === 1 ? "pendiente" : "pendientes"}
+                  </span>
+                </h3>
+                <p className="text-xs text-amber-200/80">
+                  Comercios que han reportado transferencia directa por Nequi o Bancolombia esperando activación
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {pendingInvoices.map((inv) => (
+              <div
+                key={inv.id}
+                className="bg-zinc-950/90 border border-amber-500/25 rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-lg"
+              >
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <h4 className="text-base font-bold text-white">
+                        {inv.business?.name || "Comercio sin nombre"}
+                      </h4>
+                      <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                        Comprobante: <strong className="text-zinc-200">{inv.invoiceNumber}</strong>
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                        {inv.plan} ({inv.billingCycle})
+                      </span>
+                      <span className="text-xs font-black text-white">
+                        ${inv.amount.toLocaleString("es-CO")} COP
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-zinc-900/80 rounded-xl border border-white/[0.05] text-xs flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-zinc-400">
+                      <span>Canal utilizado:</span>
+                      <strong className="text-white flex items-center gap-1">
+                        <Smartphone size={12} className="text-orange-400" /> {inv.paymentMethod}
+                      </strong>
+                    </div>
+                    <div className="flex items-center justify-between text-zinc-400">
+                      <span>Referencia reportada:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          {inv.referenceNumber || "No especificada"}
+                        </span>
+                        {inv.referenceNumber && (
+                          <button
+                            type="button"
+                            onClick={() => copyRef(inv.referenceNumber || "", inv.id)}
+                            className="text-zinc-400 hover:text-white"
+                            title="Copiar referencia"
+                          >
+                            {copiedId === inv.id ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {inv.notes && (
+                      <div className="text-[11px] text-zinc-400 mt-0.5 pt-1 border-t border-zinc-800">
+                        <span className="text-zinc-500">Nota:</span> &ldquo;{inv.notes}&rdquo;
+                      </div>
+                    )}
+                    <div className="text-[10px] text-zinc-500 mt-0.5">
+                      Reportado: {new Date(inv.createdAt).toLocaleString("es-CO")}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-zinc-900">
+                  <button
+                    type="button"
+                    onClick={() => handleApprove(inv.id, inv.invoiceNumber, inv.business?.name || "Comercio")}
+                    disabled={processingId === inv.id}
+                    className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs transition shadow-md shadow-emerald-950 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={13} />
+                    <span>{processingId === inv.id ? "Activando..." : "Validar y Activar Plan"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReject(inv.id, inv.invoiceNumber)}
+                    disabled={processingId === inv.id}
+                    className="py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold text-xs border border-rose-500/20 transition flex items-center justify-center gap-1 disabled:opacity-50"
+                  >
+                    <XCircle size={13} />
+                    <span>Rechazar</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Top Overview KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -271,7 +508,7 @@ export default async function FacturacionPage() {
             <Crown className="text-orange-500" size={18} />
             Historial de Comprobantes de Planes ({subscriptions.length})
           </h3>
-          <span className="text-xs text-zinc-500">Facturación oficial de suscripciones</span>
+          <span className="text-xs text-zinc-500">Historial completo en PostgreSQL</span>
         </div>
 
         {subscriptions.length === 0 ? (
@@ -287,12 +524,13 @@ export default async function FacturacionPage() {
             <table className="w-full text-left text-sm text-zinc-400">
               <thead className="bg-zinc-950 text-zinc-300 font-semibold text-xs border-b border-zinc-800 uppercase tracking-wider">
                 <tr>
-                  <th className="p-4 pl-6">Nº Comprobante</th>
+                  <th className="p-4 pl-6">Nº Factura</th>
                   <th className="p-4">Comercio</th>
                   <th className="p-4">Plan Adquirido</th>
                   <th className="p-4">Ciclo</th>
-                  <th className="p-4">Fecha y Hora</th>
-                  <th className="p-4">Método de Pago</th>
+                  <th className="p-4">Fecha</th>
+                  <th className="p-4">Método / Canal</th>
+                  <th className="p-4">Ref. Comprobante</th>
                   <th className="p-4">Estado</th>
                   <th className="p-4 pr-6 text-right">Importe Facturado</th>
                 </tr>
@@ -335,18 +573,23 @@ export default async function FacturacionPage() {
                       {new Date(sub.createdAt).toLocaleString("es-CO")}
                     </td>
                     <td className="p-4 text-xs text-zinc-300">{sub.paymentMethod}</td>
+                    <td className="p-4 text-xs font-mono text-zinc-400">
+                      {sub.referenceNumber || "—"}
+                    </td>
                     <td className="p-4 text-xs">
-                      <span
-                        className={`font-semibold inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border ${
-                          sub.status === "PAID"
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : sub.status === "PENDING"
-                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                            : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                        }`}
-                      >
-                        ● {sub.status}
-                      </span>
+                      {sub.status === "PAID" ? (
+                        <span className="font-semibold inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                          <CheckCircle2 size={11} /> Aprobado
+                        </span>
+                      ) : sub.status === "PENDING" ? (
+                        <span className="font-semibold inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] border bg-amber-500/10 text-amber-400 border-amber-500/20">
+                          <Clock size={11} /> Pendiente
+                        </span>
+                      ) : (
+                        <span className="font-semibold inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] border bg-rose-500/10 text-rose-400 border-rose-500/20">
+                          <XCircle size={11} /> Rechazado
+                        </span>
+                      )}
                     </td>
                     <td className="p-4 pr-6 text-right font-bold text-white">
                       ${(sub.amount || 0).toLocaleString("es-CO")} COP
