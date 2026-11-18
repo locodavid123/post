@@ -35,11 +35,4 @@ export const getIsoDate = (daysOffset: number = 0, hour: number = 12, minute: nu
   return d.toISOString();
 };
 
-export const INITIAL_SALES: Sale[] = [
-  { id: "FAC-1002", table: "Mesa 10", total: 84.00, paymentMethod: "Tarjeta", date: getIsoDate(0, 10, 15), status: "Completado", waiter: "Juan M.", guestCount: 3, saleType: "Mesas" },
-  { id: "FAC-1001", table: "Mesa 2", total: 18.50, paymentMethod: "Efectivo", date: getIsoDate(0, 9, 48), status: "Completado", waiter: "Sofia G.", guestCount: 2, saleType: "Mesas" },
-  { id: "FAC-1000", table: "Mesa 5", total: 42.00, paymentMethod: "Transferencia", date: getIsoDate(0, 9, 30), status: "Completado", waiter: "Juan M.", guestCount: 4, saleType: "Mesas" },
-  { id: "FAC-0999", table: "Mesa 1", total: 65.00, paymentMethod: "Tarjeta", date: getIsoDate(-1, 23, 45), status: "Completado", waiter: "Sofia G.", guestCount: 2, saleType: "Mesas" },
-  { id: "FAC-0998", table: "Mesa 3", total: 124.20, paymentMethod: "Tarjeta", date: getIsoDate(-1, 23, 20), status: "Completado", waiter: "Pedro P.", guestCount: 5, saleType: "Mesas" },
-  { id: "FAC-0997", table: "Mesa 12", total: 38.00, paymentMethod: "Efectivo", date: getIsoDate(-1, 22, 10), status: "Completado", waiter: "María R.", guestCount: 1, saleType: "Mesas" },
-];
+export const INITIAL_SALES: Sale[] = [];

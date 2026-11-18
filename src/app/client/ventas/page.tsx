@@ -60,11 +60,6 @@ export default function VentasPage() {
 
     const salesKey = `ecopost_sales_${businessId}`;
 
-    // Migration from old un-prefixed key
-    if (!localStorage.getItem(salesKey) && localStorage.getItem("ecopost_sales")) {
-      localStorage.setItem(salesKey, localStorage.getItem("ecopost_sales")!);
-    }
-
     const loadSales = () => {
       const savedSales = localStorage.getItem(salesKey);
       if (savedSales) {
@@ -86,7 +81,7 @@ export default function VentasPage() {
     fetch("/api/sales")
       .then((res) => (res.ok ? res.json() : null))
       .then((dbSales) => {
-        if (Array.isArray(dbSales) && dbSales.length > 0) {
+        if (Array.isArray(dbSales)) {
           const mappedSales: Sale[] = dbSales.map((s: any) => ({
             id: s.invoiceNumber || s.id,
             table: s.table,

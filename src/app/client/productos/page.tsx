@@ -66,14 +66,6 @@ export default function ProductosPage() {
     const prodKey = `ecopost_products_${businessId}`;
     const catKey = `ecopost_categories_${businessId}`;
 
-    // Migration from un-prefixed keys if present
-    if (!localStorage.getItem(prodKey) && localStorage.getItem("ecopost_products")) {
-      localStorage.setItem(prodKey, localStorage.getItem("ecopost_products")!);
-    }
-    if (!localStorage.getItem(catKey) && localStorage.getItem("ecopost_categories")) {
-      localStorage.setItem(catKey, localStorage.getItem("ecopost_categories")!);
-    }
-
     const loadData = () => {
       const savedProducts = localStorage.getItem(prodKey);
       const savedCategories = localStorage.getItem(catKey);

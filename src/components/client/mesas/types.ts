@@ -28,32 +28,10 @@ export interface Product {
 export const WAITER_OPTIONS = ["Juan M.", "Sofia G.", "Pedro P.", "María R."];
 
 export const INITIAL_TABLES: Table[] = [
-  {
-    id: 1,
-    number: 1,
-    capacity: 4,
-    status: "occupied",
-    waiter: "Juan M.",
-    guestCount: 3,
-    comment: "Cumpleaños - cliente frecuente",
-    orders: [
-      { productId: 1, name: "Hamburguesa EcoClassic", price: 12.50, quantity: 2 },
-      { productId: 4, name: "Refresco de Cola de la Casa", price: 2.50, quantity: 3 }
-    ]
-  },
+  { id: 1, number: 1, capacity: 4, status: "free" },
   { id: 2, number: 2, capacity: 2, status: "free" },
-  { id: 3, number: 3, capacity: 6, status: "free" },
-  { id: 4, number: 4, capacity: 4, status: "free" },
-  { id: 5, number: 5, capacity: 4, status: "free" },
-  {
-    id: 6,
-    number: 6,
-    capacity: 4,
-    status: "occupied",
-    waiter: "Sofia G.",
-    guestCount: 1,
-    orders: [
-      { productId: 3, name: "Cerveza Artesanal IPA", price: 5.00, quantity: 2 }
-    ]
-  },
+  { id: 3, number: 3, capacity: 4, status: "free" },
+  { id: 4, number: 4, capacity: 6, status: "free" },
+  { id: 5, number: 5, capacity: 2, status: "free" },
+  { id: 6, number: 6, capacity: 4, status: "free" },
 ];

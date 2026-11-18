@@ -46,11 +46,80 @@ export async function POST(request: Request) {
       if (b) businessId = b.id;
     }
 
-    if (!businessId && businessName) {
-      // Create a new business (do NOT search by name to avoid accidental joins)
-      const code = `biz-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
-      const b = await prisma.business.create({ data: { name: businessName, phone: phone || null, code } });
+    if (!businessId) {
+      // Cada nuevo usuario registrado obtiene su propio comercio nuevo e independiente
+      const finalBizName = businessName?.trim() || `Restaurante de ${resolvedName || 'Nuevo Usuario'}`;
+      const code = `biz-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const b = await prisma.business.create({
+        data: {
+          name: finalBizName,
+          phone: phone || null,
+          code,
+        },
+      });
       businessId = b.id;
+
+      // Crear mesas iniciales limpias (todas disponibles y sin comandas) para el nuevo comercio
+      const initialTables = [
+        { tableId: "1", capacity: 4 },
+        { tableId: "2", capacity: 2 },
+        { tableId: "3", capacity: 4 },
+        { tableId: "4", capacity: 6 },
+        { tableId: "5", capacity: 2 },
+        { tableId: "6", capacity: 4 },
+      ];
+
+      for (const t of initialTables) {
+        await prisma.tableSession.create({
+          data: {
+            businessId,
+            tableId: t.tableId,
+            nickname: `Mesa ${t.tableId}`,
+            capacity: t.capacity,
+            status: "free",
+          },
+        });
+      }
+
+      // Crear categorías iniciales para el nuevo comercio
+      const defaultCategories = [
+        { name: "Hamburguesas", icon: "🍔" },
+        { name: "Entradas", icon: "🍟" },
+        { name: "Bebidas", icon: "🍺" },
+        { name: "Postres", icon: "🍰" },
+      ];
+
+      for (const cat of defaultCategories) {
+        await prisma.category.create({
+          data: {
+            businessId,
+            name: cat.name,
+            icon: cat.icon,
+          },
+        });
+      }
+
+      // Crear productos iniciales para el catálogo del nuevo comercio
+      const starterProducts = [
+        { name: "Hamburguesa EcoClassic", category: "Hamburguesas", price: 12.50, stock: "disponible", description: "Carne de res premium 150g, queso cheddar derretido, lechuga orgánica, tomate fresco y salsa especial." },
+        { name: "Papas Fritas Crujientes", category: "Entradas", price: 4.50, stock: "disponible", description: "Papas cortadas a mano con sal marina y pimentón ahumado." },
+        { name: "Cerveza Artesanal IPA", category: "Bebidas", price: 5.00, stock: "disponible", description: "Cerveza artesanal de la casa, notas intensas de lúpulo y cítricos." },
+        { name: "Refresco de Cola de la Casa", category: "Bebidas", price: 2.50, stock: "disponible", description: "Bebida refrescante carbonatada con toques naturales de cola." },
+        { name: "Volcán de Chocolate", category: "Postres", price: 6.00, stock: "disponible", description: "Bizcocho tibio de chocolate relleno de fudge derretido con helado de vainilla." },
+      ];
+
+      for (const prod of starterProducts) {
+        await prisma.product.create({
+          data: {
+            businessId,
+            name: prod.name,
+            category: prod.category,
+            price: prod.price,
+            stock: prod.stock,
+            description: prod.description,
+          },
+        });
+      }
     }
 
     const user = await prisma.user.create({

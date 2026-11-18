@@ -20,6 +20,53 @@ export async function GET(request: Request) {
       },
     });
 
+    if (tables.length === 0) {
+      // Auto-inicializar 6 mesas limpias y libres para este negocio en PostgreSQL
+      const initialTables = [
+        { tableId: "1", capacity: 4 },
+        { tableId: "2", capacity: 2 },
+        { tableId: "3", capacity: 4 },
+        { tableId: "4", capacity: 6 },
+        { tableId: "5", capacity: 2 },
+        { tableId: "6", capacity: 4 },
+      ];
+
+      for (const t of initialTables) {
+        await prisma.tableSession.create({
+          data: {
+            businessId,
+            tableId: t.tableId,
+            nickname: `Mesa ${t.tableId}`,
+            capacity: t.capacity,
+            status: "free",
+          },
+        });
+      }
+
+      const createdTables = await prisma.tableSession.findMany({
+        where: {
+          businessId,
+          tableId: { notIn: ['admin', 'barra', 'caja'] },
+        },
+        include: {
+          products: { include: { product: true } },
+          orders: {
+            where: { status: { notIn: ['PAID', 'CANCELLED'] } },
+            include: { items: true },
+          },
+        },
+      });
+
+      createdTables.sort((a, b) => {
+        const numA = parseInt(a.tableId, 10);
+        const numB = parseInt(b.tableId, 10);
+        if (isNaN(numA) || isNaN(numB)) return a.tableId.localeCompare(b.tableId);
+        return numA - numB;
+      });
+
+      return NextResponse.json(createdTables);
+    }
+
     // Ordenamiento numérico: 1, 2, 3, ..., 10, 11, 12
     tables.sort((a, b) => {
       const numA = parseInt(a.tableId, 10);

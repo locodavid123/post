@@ -87,18 +87,6 @@ export default function MesasPage() {
     // Helper to get storage key with businessId prefix
     const key = (base: string) => `ecopost_${base}_${businessId}`;
 
-    // Migrate old generic keys to new prefixed keys (one-time migration)
-    const migrateKey = (base: string) => {
-      const oldKey = `ecopost_${base}`;
-      const newKey = key(base);
-      if (!localStorage.getItem(newKey) && localStorage.getItem(oldKey)) {
-        localStorage.setItem(newKey, localStorage.getItem(oldKey)!);
-      }
-    };
-    migrateKey("tables");
-    migrateKey("products");
-    migrateKey("sales");
-
     const savedTables = localStorage.getItem(key("tables"));
     if (savedTables) {
       try {
