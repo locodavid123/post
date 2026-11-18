@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import type { SongRequest as PrismaSongRequest, TableSession } from "@prisma/client";
+import { useJukebox } from "@/context/JukeboxContext";
 import {
   Search,
   Music,
@@ -19,8 +19,6 @@ import {
   Crown,
 } from "lucide-react";
 
-type SongRequestWithRelations = PrismaSongRequest & { requestedBy: TableSession };
-
 interface YouTubeSongResult {
   id: string;
   title: string;
@@ -30,26 +28,19 @@ interface YouTubeSongResult {
 }
 
 export default function JukeboxAdminPage() {
-  const [queue, setQueue] = useState<SongRequestWithRelations[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [businessCode, setBusinessCode] = useState<string>("demo");
-  const [businessPlan, setBusinessPlan] = useState<string>("FREE");
-
-  // Obtener negocio del usuario si está autenticado
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.user?.business) {
-          setBusinessCode(data.user.business.code || data.user.business.id || data.user.businessId || "demo");
-          setBusinessPlan(data.user.business.plan || "FREE");
-        } else if (data?.user?.businessId) {
-          setBusinessCode(data.user.businessId);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const {
+    queue,
+    currentSong,
+    pendingSongs,
+    isLoading,
+    isProcessing,
+    businessCode,
+    businessPlan,
+    fetchQueue,
+    handleNext,
+    handlePlaySong,
+    handleDeleteSong,
+  } = useJukebox();
 
   // Estados para el buscador de YouTube
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,78 +49,6 @@ export default function JukeboxAdminPage() {
   const [addingSongId, setAddingSongId] = useState<string | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
-
-  // Carga la cola desde el servidor
-  const fetchQueue = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/jukebox/queue?businessCode=${encodeURIComponent(businessCode)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setQueue(data);
-      }
-    } catch (err) {
-      console.error("Error al obtener la cola:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [businessCode]);
-
-  useEffect(() => {
-    fetchQueue();
-    const interval = setInterval(fetchQueue, 3000);
-    return () => clearInterval(interval);
-  }, [fetchQueue]);
-
-  // Canción actualmente en reproducción (status === 'PLAYING')
-  const currentSong = queue.find((s) => s.status === "PLAYING");
-  // Canciones pendientes en espera (status === 'PENDING')
-  const pendingSongs = queue.filter((s) => s.status === "PENDING");
-
-  // Controladores de reproducción
-  const handleNext = async () => {
-    setIsProcessing(true);
-    try {
-      await fetch("/api/jukebox/control", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "NEXT" }),
-      });
-      fetchQueue();
-    } catch (err) {
-      console.error("Error al pasar a siguiente canción:", err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handlePlaySong = async (songId: string) => {
-    setIsProcessing(true);
-    try {
-      await fetch("/api/jukebox/control", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "PLAY", songId }),
-      });
-      fetchQueue();
-    } catch (err) {
-      console.error("Error al reproducir canción:", err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDeleteSong = async (songId: string) => {
-    try {
-      await fetch("/api/jukebox/control", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "DELETE", songId }),
-      });
-      fetchQueue();
-    } catch (err) {
-      console.error("Error al eliminar canción:", err);
-    }
-  };
 
   // Manejo de búsqueda en YouTube
   const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -410,15 +329,34 @@ export default function JukeboxAdminPage() {
 
           {currentSong ? (
             <>
-              {/* Reproductor Embebido de YouTube */}
-              <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black border border-white/[0.08] shadow-2xl">
-                <iframe
-                  className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${currentSong.youtubeId}?autoplay=1&enablejsapi=1`}
-                  title={currentSong.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
+              {/* Carátula y Estado de Reproducción en Vivo */}
+              <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black border border-white/[0.08] shadow-2xl flex items-center justify-center group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={currentSong.thumbnailUrl}
+                  alt={currentSong.title}
+                  className="absolute inset-0 w-full h-full object-cover filter blur-md scale-110 opacity-35"
                 />
+                <div className="relative z-10 flex flex-col items-center gap-3 p-4 text-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shadow-2xl border-2 border-orange-500/30 relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={currentSong.thumbnailUrl}
+                      alt={currentSong.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                      <Music size={26} className="text-white animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-[11px] font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Reproduciendo en segundo plano</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 max-w-xs leading-relaxed">
+                    El audio sigue activo en el restaurante mientras navegas por Mesas, Ventas y Productos.
+                  </p>
+                </div>
               </div>
 
               {/* Portada y detalles del tema */}

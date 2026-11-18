@@ -13,6 +13,8 @@ import {
   Crown,
   AlertTriangle,
 } from "lucide-react";
+import { JukeboxProvider } from "@/context/JukeboxContext";
+import PersistentJukeboxPlayer from "@/components/client/jukebox/PersistentJukeboxPlayer";
 
 interface NavItemProps {
   href: string;
@@ -87,8 +89,9 @@ export default function ClientLayout({
   };
 
   return (
-    <div className="min-h-screen bg-[#090a0f] text-zinc-100 font-sans selection:bg-orange-500/30 selection:text-orange-200">
-      {/* Top Navbar */}
+    <JukeboxProvider>
+      <div className="min-h-screen bg-[#090a0f] text-zinc-100 font-sans selection:bg-orange-500/30 selection:text-orange-200">
+        {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0c0e15]/85 backdrop-blur-xl px-4 sm:px-6 py-3 transition-all">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           {/* Logo & Badge */}
@@ -201,6 +204,10 @@ export default function ClientLayout({
 
       {/* Main Container */}
       <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 animate-fade-in">{children}</main>
+
+      {/* Reproductor Persistente de Rockola (Audio continuo en segundo plano) */}
+      <PersistentJukeboxPlayer />
     </div>
-  );
+  </JukeboxProvider>
+);
 }
