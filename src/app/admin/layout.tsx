@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  LayoutDashboard,
   Building2,
   Users,
   BarChart3,
@@ -20,7 +21,11 @@ interface AdminNavItemProps {
 
 function AdminNavItem({ href, icon, children }: AdminNavItemProps) {
   const pathname = usePathname();
-  const isActive = pathname ? pathname === href || pathname.startsWith(href + "/") : false;
+  const isActive = pathname
+    ? href === "/admin"
+      ? pathname === "/admin"
+      : pathname === href || pathname.startsWith(href + "/")
+    : false;
   return (
     <Link
       href={href}
@@ -84,6 +89,9 @@ export default function AdminLayout({
 
           {/* Navigation Links */}
           <nav className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-zinc-950/60 border border-white/[0.05]">
+            <AdminNavItem href="/admin" icon={<LayoutDashboard size={16} />}>
+              Dashboard
+            </AdminNavItem>
             <AdminNavItem href="/admin/negocios" icon={<Building2 size={16} />}>
               Negocios
             </AdminNavItem>

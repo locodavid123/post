@@ -1,116 +1,422 @@
-import React from "react";
+"use client";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Building2,
+  Phone,
+  MapPin,
+  Calendar,
+  Users,
+  Music,
+  QrCode,
+  DollarSign,
+  ArrowLeft,
+  RefreshCw,
+  Trash2,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
+interface BusinessDetail {
+  id: string;
+  name: string;
+  code: string | null;
+  phone: string | null;
+  address: string | null;
+  enableJukebox: boolean;
+  enableQrOrders: boolean;
+  createdAt: string;
+  users: Array<{ id: string; name: string | null; email: string; role: string; createdAt: string }>;
+  tables: Array<{ id: string; tableId: string; nickname: string; capacity: number; status: string; waiter: string | null }>;
+  products: Array<{ id: string; name: string; category: string; price: number; stock: string }>;
+  sales: Array<{ id: string; invoiceNumber: string; total: number; paymentMethod: string; status: string; createdAt: string }>;
+  totalSalesVolume: number;
+  occupiedTablesCount: number;
+  _count: {
+    tables: number;
+    products: number;
+    sales: number;
+    songRequests: number;
+    users: number;
+  };
 }
 
-export default async function DetalleNegocioPage({ params }: PageProps) {
-  const { id } = await params;
+export default function DetalleNegocioPage() {
+  const params = useParams();
+  const router = useRouter();
+  const businessId = params?.id as string;
+
+  const [business, setBusiness] = useState<BusinessDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [regeneratingPromo, setRegeneratingPromo] = useState(false);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Editable Form fields
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [enableJukebox, setEnableJukebox] = useState(true);
+  const [enableQrOrders, setEnableQrOrders] = useState(true);
+
+  const fetchDetail = async () => {
+    if (!businessId) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/admin/businesses/${businessId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBusiness(data);
+        setName(data.name || "");
+        setPhone(data.phone || "");
+        setAddress(data.address || "");
+        setEnableJukebox(Boolean(data.enableJukebox));
+        setEnableQrOrders(Boolean(data.enableQrOrders));
+      } else {
+        setNotification({ type: "error", message: "No se pudo encontrar el comercio." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error al cargar datos del comercio." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDetail();
+  }, [businessId]);
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!businessId) return;
+
+    setSaving(true);
+    setNotification(null);
+    try {
+      const res = await fetch(`/api/admin/businesses/${businessId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          phone,
+          address,
+          enableJukebox,
+          enableQrOrders,
+        }),
+      });
+
+      if (res.ok) {
+        setNotification({ type: "success", message: "Datos del comercio actualizados correctamente en PostgreSQL." });
+        fetchDetail();
+      } else {
+        setNotification({ type: "error", message: "Error al actualizar los datos." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de red al actualizar." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!confirm("¿Deseas generar un nuevo código para este comercio?")) return;
+
+    setRegeneratingPromo(true);
+    try {
+      const res = await fetch(`/api/admin/businesses/${businessId}/promo`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setNotification({ type: "success", message: `Nuevo código asignado: ${data.code}` });
+        fetchDetail();
+      } else {
+        setNotification({ type: "error", message: "Error al regenerar código." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error al comunicar con la API." });
+    } finally {
+      setRegeneratingPromo(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`¿Eliminar definitivamente el comercio "${business?.name}"? Esta acción borrará todas sus mesas, productos y ventas de PostgreSQL.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/businesses/${businessId}`, { method: "DELETE" });
+      if (res.ok) {
+        router.push("/admin/negocios");
+      } else {
+        setNotification({ type: "error", message: "No se pudo eliminar el comercio." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de red." });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-zinc-500">
+        <RefreshCw size={24} className="animate-spin text-orange-500" />
+        <p className="text-sm">Cargando datos del comercio...</p>
+      </div>
+    );
+  }
+
+  if (!business) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center">
+        <AlertCircle size={40} className="text-rose-500" />
+        <h3 className="text-xl font-bold text-white">Comercio no encontrado</h3>
+        <p className="text-sm text-zinc-400">El comercio solicitado no existe o fue eliminado de la base de datos.</p>
+        <Link
+          href="/admin/negocios"
+          className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl transition"
+        >
+          ← Volver al listado
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-8 max-w-5xl mx-auto">
-      {/* Back button & Title */}
-      <div className="flex flex-col gap-4">
-        <Link href="/admin/negocios" className="text-xs text-zinc-500 hover:text-zinc-300 font-semibold transition-all">
-          ← Volver a negocios
+    <div className="flex flex-col gap-8 max-w-6xl mx-auto">
+      {/* Back button */}
+      <div>
+        <Link
+          href="/admin/negocios"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition"
+        >
+          <ArrowLeft size={14} />
+          Volver a Negocios
         </Link>
-        <div className="flex justify-between items-start">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-3xl font-bold tracking-tight text-white">Detalle de Comercio #{id}</h2>
-            <p className="text-sm text-zinc-400">Panel administrativo individual para control de cuenta y auditoría.</p>
+      </div>
+
+      {/* Notifications */}
+      {notification && (
+        <div
+          className={`p-4 rounded-xl flex items-center justify-between text-sm ${
+            notification.type === "success"
+              ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+              : "bg-rose-500/10 border border-rose-500/30 text-rose-400"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {notification.type === "success" ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <span>{notification.message}</span>
           </div>
-          <div className="flex gap-2">
-            <button className="bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 font-semibold text-xs px-4 py-2 rounded-xl transition-all">
-              Suspender Cuenta
-            </button>
-            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs px-4 py-2 rounded-xl transition-all">
-              Editar Datos
-            </button>
+          <button onClick={() => setNotification(null)} className="text-xs underline ml-4">
+            Cerrar
+          </button>
+        </div>
+      )}
+
+      {/* Header Info */}
+      <div className="flex justify-between items-start flex-wrap gap-4 pb-4 border-b border-zinc-800">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-extrabold tracking-tight text-white">{business.name}</h2>
+            <span className="text-xs font-mono px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-lg">
+              Código: {business.code || "Sin código"}
+            </span>
           </div>
+          <p className="text-xs text-zinc-400 flex items-center gap-4 mt-1">
+            <span>ID: <code className="text-zinc-500">{business.id}</code></span>
+            <span>Registrado el: {new Date(business.createdAt).toLocaleDateString()}</span>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleRegenerateCode}
+            disabled={regeneratingPromo}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+          >
+            <RefreshCw size={13} className={regeneratingPromo ? "animate-spin" : ""} />
+            Regenerar Código
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition"
+          >
+            <Trash2 size={13} />
+            Eliminar Comercio
+          </button>
         </div>
       </div>
 
-      {/* Main Details layout */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
-        {/* Left Side: General Card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-6">
-          <div className="flex flex-col items-center text-center gap-2">
-            <div className="w-16 h-16 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center font-extrabold text-orange-400 text-2xl">
-              PN
-            </div>
-            <h3 className="text-lg font-bold text-white mt-2">Pizzería Nápoles</h3>
-            <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2.5 py-0.5 rounded-full border border-amber-500/20 font-semibold">
-              Plan Premium Pro
-            </span>
-          </div>
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+          <p className="text-[11px] text-zinc-500 uppercase font-semibold">Ventas Acumuladas</p>
+          <p className="text-2xl font-black text-white mt-1">${business.totalSalesVolume.toFixed(2)}</p>
+          <p className="text-[11px] text-zinc-400 mt-1">{business._count.sales} ventas registradas</p>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+          <p className="text-[11px] text-zinc-500 uppercase font-semibold">Mesas Configuradas</p>
+          <p className="text-2xl font-black text-white mt-1">{business._count.tables}</p>
+          <p className="text-[11px] text-emerald-400 mt-1">{business.occupiedTablesCount} ocupadas en vivo</p>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+          <p className="text-[11px] text-zinc-500 uppercase font-semibold">Productos en Carta</p>
+          <p className="text-2xl font-black text-white mt-1">{business._count.products}</p>
+          <p className="text-[11px] text-zinc-400 mt-1">Disponibles en el POS</p>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+          <p className="text-[11px] text-zinc-500 uppercase font-semibold">Canciones Jukebox</p>
+          <p className="text-2xl font-black text-white mt-1">{business._count.songRequests}</p>
+          <p className="text-[11px] text-zinc-400 mt-1">Peticiones de clientes</p>
+        </div>
+      </div>
 
-          <div className="border-t border-zinc-800 pt-4 flex flex-col gap-3">
-            <div className="flex justify-between text-xs text-zinc-400">
-              <span>Habilitación:</span>
-              <span className="font-semibold text-emerald-500">Activo</span>
+      {/* Main Grid: Form + Users + Sales */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Edit Settings */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-5">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <Building2 className="text-orange-500" size={18} />
+            Configuración del Comercio
+          </h3>
+
+          <form onSubmit={handleUpdate} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase text-zinc-400">Nombre Comercial</label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+              />
             </div>
-            <div className="flex justify-between text-xs text-zinc-400">
-              <span>Registrado el:</span>
-              <span className="font-semibold text-zinc-200">12/04/2026</span>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase text-zinc-400">Teléfono</label>
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="555-0100"
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+              />
             </div>
-            <div className="flex justify-between text-xs text-zinc-400">
-              <span>Propietario:</span>
-              <span className="font-semibold text-zinc-200">Carlos N.</span>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase text-zinc-400">Dirección</label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Av. Gastronómica 123"
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+              />
             </div>
-            <div className="flex justify-between text-xs text-zinc-400">
-              <span>Teléfono:</span>
-              <span className="font-semibold text-zinc-200">+54 11 9876-5432</span>
+
+            <div className="flex flex-col gap-3 pt-3 border-t border-zinc-800">
+              <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enableJukebox}
+                  onChange={(e) => setEnableJukebox(e.target.checked)}
+                  className="rounded border-zinc-700 text-orange-500 focus:ring-0"
+                />
+                <span>Habilitar Rockola / Jukebox YouTube</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enableQrOrders}
+                  onChange={(e) => setEnableQrOrders(e.target.checked)}
+                  className="rounded border-zinc-700 text-orange-500 focus:ring-0"
+                />
+                <span>Habilitar Pedidos QR desde la mesa</span>
+              </label>
             </div>
-          </div>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="mt-2 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition shadow-md shadow-orange-500/15 disabled:opacity-50"
+            >
+              <Save size={14} />
+              {saving ? "Guardando..." : "Guardar Cambios"}
+            </button>
+          </form>
         </div>
 
-        {/* Right Side: Logs / Stats */}
-        <div className="md:col-span-2 flex flex-col gap-6">
-          {/* Platform Usage Stats */}
+        {/* Right Column: Users & Sales */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          {/* Associated Users */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-4">
-            <h3 className="text-base font-bold text-white">Uso de la Plataforma</h3>
-            <div className="grid grid-cols-3 gap-4 text-center mt-2">
-              <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-xl">
-                <p className="text-[10px] text-zinc-500 font-semibold uppercase">Mesas Activas</p>
-                <p className="text-xl font-bold text-white mt-1">16</p>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Users className="text-orange-500" size={18} />
+              Usuarios Asignados a este Comercio ({business.users.length})
+            </h3>
+
+            {business.users.length === 0 ? (
+              <p className="text-xs text-zinc-500">No hay usuarios asignados directamente a este local.</p>
+            ) : (
+              <div className="divide-y divide-zinc-800">
+                {business.users.map((u) => (
+                  <div key={u.id} className="py-2.5 flex justify-between items-center text-xs">
+                    <div>
+                      <p className="font-semibold text-zinc-200">{u.name || "Sin nombre"}</p>
+                      <p className="text-zinc-500">{u.email}</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-300">
+                      {u.role}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-xl">
-                <p className="text-[10px] text-zinc-500 font-semibold uppercase">Pedidos (Mes)</p>
-                <p className="text-xl font-bold text-white mt-1">1,240</p>
-              </div>
-              <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-xl">
-                <p className="text-[10px] text-zinc-500 font-semibold uppercase">Jukebox Canciones</p>
-                <p className="text-xl font-bold text-white mt-1">456</p>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Subscriptions invoices list */}
+          {/* Recent Sales for this business */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-4">
-            <h3 className="text-base font-bold text-white">Historial de Cobros</h3>
-            <div className="flex flex-col gap-3">
-              {[
-                { period: "Junio 2026", amount: "$50.00", method: "Tarjeta de Crédito", status: "Cobrado" },
-                { period: "Mayo 2026", amount: "$50.00", method: "Tarjeta de Crédito", status: "Cobrado" },
-                { period: "Abril 2026", amount: "$50.00", method: "Tarjeta de Crédito", status: "Cobrado" },
-              ].map((inv, idx) => (
-                <div key={idx} className="flex justify-between items-center p-3 bg-zinc-950 border border-zinc-900 rounded-xl">
-                  <div>
-                    <h4 className="text-xs font-semibold text-white">Período: {inv.period}</h4>
-                    <p className="text-[10px] text-zinc-500">{inv.method}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-white">{inv.amount}</p>
-                    <span className="text-[9px] text-emerald-500 font-semibold">{inv.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <DollarSign className="text-orange-500" size={18} />
+              Últimas Ventas ({business.sales.length})
+            </h3>
+
+            {business.sales.length === 0 ? (
+              <p className="text-xs text-zinc-500">Este comercio aún no tiene ventas registradas.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-zinc-400">
+                  <thead className="bg-zinc-950 text-zinc-300 font-semibold border-b border-zinc-800">
+                    <tr>
+                      <th className="p-2.5">Factura</th>
+                      <th className="p-2.5">Fecha</th>
+                      <th className="p-2.5">Pago</th>
+                      <th className="p-2.5">Estado</th>
+                      <th className="p-2.5 text-right">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800">
+                    {business.sales.map((s) => (
+                      <tr key={s.id} className="hover:bg-zinc-950/40">
+                        <td className="p-2.5 font-semibold text-white">{s.invoiceNumber}</td>
+                        <td className="p-2.5 text-zinc-500">{new Date(s.createdAt).toLocaleString()}</td>
+                        <td className="p-2.5">{s.paymentMethod}</td>
+                        <td className="p-2.5">
+                          <span className={`font-semibold ${s.status === "Completado" ? "text-emerald-400" : "text-rose-400"}`}>
+                            {s.status}
+                          </span>
+                        </td>
+                        <td className="p-2.5 text-right font-bold text-white">${s.total.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
-
       </div>
     </div>
   );
