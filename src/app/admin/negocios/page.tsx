@@ -9,6 +9,9 @@ interface Business {
   code: string | null;
   phone: string | null;
   address: string | null;
+  plan?: string;
+  planStatus?: string;
+  planExpiresAt?: string | null;
   enableJukebox: boolean;
   enableQrOrders: boolean;
   createdAt: string;
@@ -89,6 +92,31 @@ export default function NegociosPage() {
       setNotification({ type: "error", message: "Error de red al conectar con el servidor" });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleTogglePlanStatus = async (id: string, name: string, currentStatus?: string) => {
+    const nextStatus = currentStatus === "SUSPENDED" ? "ACTIVE" : "SUSPENDED";
+    const actionName = nextStatus === "ACTIVE" ? "reactivar" : "suspender";
+    if (!confirm(`¿Deseas ${actionName} el plan y servicios de "${name}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/businesses/${id}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planStatus: nextStatus }),
+      });
+      if (res.ok) {
+        setNotification({
+          type: "success",
+          message: nextStatus === "ACTIVE" ? `Servicios de "${name}" reactivados.` : `Servicios de "${name}" suspendidos.`,
+        });
+        fetchBusinesses();
+      } else {
+        setNotification({ type: "error", message: "Error al cambiar el estado del servicio." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de red al actualizar estado." });
     }
   };
 
@@ -209,7 +237,7 @@ export default function NegociosPage() {
                   <th className="p-4 pl-6">Código</th>
                   <th className="p-4">Nombre Comercial</th>
                   <th className="p-4">Titular</th>
-                  <th className="p-4">Teléfono</th>
+                  <th className="p-4">Plan y Estado</th>
                   <th className="p-4 text-center">Mesas</th>
                   <th className="p-4 text-center">Productos</th>
                   <th className="p-4 text-center">Ventas</th>
@@ -220,6 +248,10 @@ export default function NegociosPage() {
               <tbody className="divide-y divide-zinc-800">
                 {filtered.map((biz) => {
                   const owner = biz.users[0]?.name || biz.users[0]?.email || "Sin asignar";
+                  const plan = biz.plan || "FREE";
+                  const status = biz.planStatus || "ACTIVE";
+                  const isSuspended = status === "SUSPENDED";
+
                   return (
                     <tr key={biz.id} className="hover:bg-zinc-900/50 transition-all">
                       <td className="p-4 pl-6 font-mono text-xs text-orange-400">
@@ -227,7 +259,28 @@ export default function NegociosPage() {
                       </td>
                       <td className="p-4 text-zinc-100 font-semibold">{biz.name}</td>
                       <td className="p-4 text-xs text-zinc-400">{owner}</td>
-                      <td className="p-4 text-xs text-zinc-500">{biz.phone || "—"}</td>
+                      <td className="p-4 text-xs">
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase w-fit ${
+                              plan === "PRO"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                                : plan === "STANDARD"
+                                ? "bg-blue-500/10 text-blue-400 border border-blue-500/30"
+                                : "bg-zinc-800 text-zinc-400"
+                            }`}
+                          >
+                            {plan}
+                          </span>
+                          <span
+                            className={`text-[10px] font-semibold ${
+                              isSuspended ? "text-rose-400" : "text-emerald-400"
+                            }`}
+                          >
+                            ● {isSuspended ? "Suspendido" : "Activo"}
+                          </span>
+                        </div>
+                      </td>
                       <td className="p-4 text-center text-xs font-semibold text-zinc-200">
                         {biz._count.tables}
                       </td>
@@ -250,6 +303,17 @@ export default function NegociosPage() {
                       </td>
                       <td className="p-4 pr-6 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleTogglePlanStatus(biz.id, biz.name, biz.planStatus)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                              isSuspended
+                                ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                : "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30"
+                            }`}
+                            title={isSuspended ? "Reactivar servicios" : "Suspender servicios"}
+                          >
+                            {isSuspended ? "Activar" : "Suspender"}
+                          </button>
                           <Link
                             href={`/admin/negocios/${biz.id}`}
                             className="bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"

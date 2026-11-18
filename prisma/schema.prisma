@@ -21,6 +21,12 @@ model Business {
   address        String?
   createdAt      DateTime @default(now())
 
+  // Planes y Suscripción
+  plan           String    @default("FREE")        // FREE, STANDARD, PRO, ENTERPRISE
+  planStatus     String    @default("ACTIVE")      // ACTIVE, SUSPENDED, EXPIRED, CANCELLED
+  planExpiresAt  DateTime?                         // Fecha de vencimiento / renovación
+  billingCycle   String    @default("monthly")     // monthly, annual
+
   // Configuración del comercio
   enableJukebox  Boolean  @default(true)
   enableQrOrders Boolean  @default(true)
@@ -34,6 +40,7 @@ model Business {
   categories     Category[]
   orders         Order[]
   sales          Sale[]
+  subscriptions  SubscriptionInvoice[]
 }
 
 // --- Modelo de Usuarios y Autenticación ---
@@ -196,4 +203,22 @@ model SongRequest {
   
   businessId    String
   business      Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// --- Facturas y Cobros de Suscripción (Planes) ---
+
+model SubscriptionInvoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   // "SUB-1001"
+  plan          String   // "FREE", "STANDARD", "PRO", "ENTERPRISE"
+  amount        Float    // 29.99, 49.99
+  billingCycle  String   @default("monthly") // monthly, annual
+  paymentMethod String   @default("Tarjeta") // Tarjeta, Transferencia, AdminManual
+  status        String   @default("PAID")    // PAID, FAILED, PENDING
+  periodStart   DateTime @default(now())
+  periodEnd     DateTime
+  createdAt     DateTime @default(now())
+
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }

@@ -37,6 +37,10 @@ export async function GET(
           take: 20,
           orderBy: { createdAt: 'desc' },
         },
+        subscriptions: {
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+        },
         _count: {
           select: {
             tables: true,
@@ -44,6 +48,7 @@ export async function GET(
             sales: true,
             songRequests: true,
             users: true,
+            subscriptions: true,
           },
         },
       },
@@ -82,7 +87,7 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { name, phone, address, enableJukebox, enableQrOrders, code, alertSound } = body;
+    const { name, phone, address, enableJukebox, enableQrOrders, code, alertSound, plan, planStatus, planExpiresAt } = body;
 
     const updated = await prisma.business.update({
       where: { id },
@@ -94,6 +99,9 @@ export async function PUT(
         enableQrOrders: enableQrOrders !== undefined ? Boolean(enableQrOrders) : undefined,
         alertSound: alertSound !== undefined ? String(alertSound) : undefined,
         code: code !== undefined ? String(code).trim() : undefined,
+        plan: plan !== undefined ? String(plan).trim() : undefined,
+        planStatus: planStatus !== undefined ? String(planStatus).trim() : undefined,
+        planExpiresAt: planExpiresAt !== undefined ? (planExpiresAt ? new Date(planExpiresAt) : null) : undefined,
       },
     });
 

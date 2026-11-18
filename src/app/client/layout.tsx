@@ -10,6 +10,8 @@ import {
   SlidersHorizontal,
   Store,
   LogOut,
+  Crown,
+  AlertTriangle,
 } from "lucide-react";
 
 interface NavItemProps {
@@ -43,15 +45,19 @@ export default function ClientLayout({
 }) {
   const router = useRouter();
   const [businessName, setBusinessName] = useState<string>("Cargando...");
+  const [businessPlan, setBusinessPlan] = useState<string>("FREE");
+  const [planStatus, setPlanStatus] = useState<string>("ACTIVE");
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Fetch the authenticated user's business name on mount
+  // Fetch the authenticated user's business name and plan on mount
   useEffect(() => {
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.user?.business?.name) {
-          setBusinessName(data.user.business.name);
+        if (data?.user?.business) {
+          setBusinessName(data.user.business.name || "Mi Negocio");
+          setBusinessPlan(data.user.business.plan || "FREE");
+          setPlanStatus(data.user.business.planStatus || "ACTIVE");
         } else if (data?.user?.name) {
           setBusinessName(data.user.name);
         } else {
@@ -117,14 +123,42 @@ export default function ClientLayout({
             <NavItem href="/client/configuracion" icon={<SlidersHorizontal size={16} />}>
               Configuración
             </NavItem>
+            <NavItem href="/client/planes" icon={<Crown size={16} />}>
+              Planes
+            </NavItem>
           </nav>
 
           {/* Business Pill & Logout */}
           <div className="flex items-center gap-3">
+            <Link
+              href="/client/planes"
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold border transition ${
+                businessPlan === "PRO"
+                  ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 text-orange-400 border-orange-500/30 hover:border-orange-500/50"
+                  : businessPlan === "STANDARD"
+                  ? "bg-blue-500/10 text-blue-400 border-blue-500/30 hover:border-blue-500/50"
+                  : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white"
+              }`}
+              title="Ver estado de suscripción y planes"
+            >
+              <Crown size={12} className={businessPlan === "PRO" ? "text-orange-400" : ""} />
+              <span>
+                {businessPlan === "PRO"
+                  ? "Pro"
+                  : businessPlan === "STANDARD"
+                  ? "Standard"
+                  : "Free"}
+              </span>
+            </Link>
+
             <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-zinc-900/80 px-3 py-1.5 text-xs font-semibold text-zinc-300 shadow-sm">
               <Store size={14} className="text-orange-400" />
               <span className="max-w-[130px] truncate">{businessName}</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  planStatus === "SUSPENDED" ? "bg-rose-500" : "bg-emerald-500"
+                } animate-pulse ml-0.5`}
+              />
             </div>
 
             <button
@@ -138,6 +172,19 @@ export default function ClientLayout({
           </div>
         </div>
       </header>
+
+      {/* Plan Suspended Persistent Banner */}
+      {planStatus === "SUSPENDED" && (
+        <div className="bg-rose-950/90 border-b border-rose-800/80 text-rose-200 text-xs py-2.5 px-4 font-semibold flex items-center justify-center gap-2">
+          <AlertTriangle size={15} className="text-rose-400 shrink-0" />
+          <span>
+            Tu cuenta y servicios se encuentran temporalmente <strong>suspendidos</strong> por el SuperAdmin. Por favor regulariza tu suscripción o contacta a soporte técnico.
+          </span>
+          <Link href="/client/planes" className="underline ml-2 text-white hover:text-rose-100">
+            Reactivar Plan →
+          </Link>
+        </div>
+      )}
 
       {/* Main Container */}
       <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 animate-fade-in">{children}</main>

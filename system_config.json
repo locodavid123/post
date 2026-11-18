@@ -1,11 +1,11 @@
 {
   "platformName": "EcoPost Enterprise",
   "supportEmail": "admin@ecopost.local",
-  "currency": "USD ($)",
-  "standardPlanPrice": 35,
-  "proPlanPrice": 49.99,
+  "currency": "COP ($)",
+  "standardPlanPrice": 35000,
+  "proPlanPrice": 50000,
   "allowSelfRegistration": true,
   "youtubeApiKeyConfigured": true,
   "stripePublicKey": "",
-  "stripeSecretKey": ""
+  "stripeSecretKey": "admin123"
 }

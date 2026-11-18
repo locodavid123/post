@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import type { SongRequest as PrismaSongRequest, TableSession } from "@prisma/client";
 import {
   Search,
@@ -15,6 +16,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Volume2,
+  Crown,
 } from "lucide-react";
 
 type SongRequestWithRelations = PrismaSongRequest & { requestedBy: TableSession };
@@ -32,14 +34,16 @@ export default function JukeboxAdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [businessCode, setBusinessCode] = useState<string>("demo");
+  const [businessPlan, setBusinessPlan] = useState<string>("FREE");
 
   // Obtener negocio del usuario si está autenticado
   useEffect(() => {
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.user?.business?.code) {
-          setBusinessCode(data.user.business.code);
+        if (data?.user?.business) {
+          setBusinessCode(data.user.business.code || data.user.businessId || "demo");
+          setBusinessPlan(data.user.business.plan || "FREE");
         } else if (data?.user?.businessId) {
           setBusinessCode(data.user.businessId);
         }
@@ -222,6 +226,24 @@ export default function JukeboxAdminPage() {
           </p>
         </div>
       </div>
+
+      {/* Plan Pro Info Banner */}
+      {businessPlan === "FREE" && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-orange-500/30 p-4 rounded-2xl flex items-center justify-between text-xs text-orange-200">
+          <div className="flex items-center gap-2.5">
+            <Crown size={18} className="text-orange-400 shrink-0" />
+            <span>
+              Estás utilizando la Rockola en modo de prueba. Con el <strong>Plan Pro</strong> tus clientes podrán pedir música ilimitada escaneando el código QR de sus mesas.
+            </span>
+          </div>
+          <Link
+            href="/client/planes"
+            className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shrink-0 ml-3 transition shadow-md shadow-orange-500/20"
+          >
+            Mejorar a Pro →
+          </Link>
+        </div>
+      )}
 
       {/* SECCIÓN DE BÚSQUEDA Y AGREGADO RÁPIDO DE YOUTUBE */}
       <section className="bg-[#12151e] border border-white/[0.08] rounded-3xl p-6 shadow-xl relative overflow-hidden">

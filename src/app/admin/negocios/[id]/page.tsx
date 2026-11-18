@@ -17,6 +17,9 @@ import {
   Save,
   CheckCircle2,
   AlertCircle,
+  Crown,
+  Zap,
+  ShieldAlert,
 } from "lucide-react";
 
 interface BusinessDetail {
@@ -25,6 +28,10 @@ interface BusinessDetail {
   code: string | null;
   phone: string | null;
   address: string | null;
+  plan?: string;
+  planStatus?: string;
+  planExpiresAt?: string | null;
+  billingCycle?: string;
   enableJukebox: boolean;
   enableQrOrders: boolean;
   createdAt: string;
@@ -32,6 +39,16 @@ interface BusinessDetail {
   tables: Array<{ id: string; tableId: string; nickname: string; capacity: number; status: string; waiter: string | null }>;
   products: Array<{ id: string; name: string; category: string; price: number; stock: string }>;
   sales: Array<{ id: string; invoiceNumber: string; total: number; paymentMethod: string; status: string; createdAt: string }>;
+  subscriptions?: Array<{
+    id: string;
+    invoiceNumber: string;
+    plan: string;
+    amount: number;
+    billingCycle: string;
+    paymentMethod: string;
+    status: string;
+    createdAt: string;
+  }>;
   totalSalesVolume: number;
   occupiedTablesCount: number;
   _count: {
@@ -40,6 +57,7 @@ interface BusinessDetail {
     sales: number;
     songRequests: number;
     users: number;
+    subscriptions?: number;
   };
 }
 
@@ -61,6 +79,11 @@ export default function DetalleNegocioPage() {
   const [enableJukebox, setEnableJukebox] = useState(true);
   const [enableQrOrders, setEnableQrOrders] = useState(true);
 
+  // Plan Management fields
+  const [selectedPlan, setSelectedPlan] = useState("FREE");
+  const [selectedPlanStatus, setSelectedPlanStatus] = useState("ACTIVE");
+  const [savingPlan, setSavingPlan] = useState(false);
+
   const fetchDetail = async () => {
     if (!businessId) return;
     try {
@@ -74,6 +97,8 @@ export default function DetalleNegocioPage() {
         setAddress(data.address || "");
         setEnableJukebox(Boolean(data.enableJukebox));
         setEnableQrOrders(Boolean(data.enableQrOrders));
+        setSelectedPlan(data.plan || "FREE");
+        setSelectedPlanStatus(data.planStatus || "ACTIVE");
       } else {
         setNotification({ type: "error", message: "No se pudo encontrar el comercio." });
       }
@@ -87,6 +112,71 @@ export default function DetalleNegocioPage() {
   useEffect(() => {
     fetchDetail();
   }, [businessId]);
+
+  const handleUpdatePlan = async () => {
+    setSavingPlan(true);
+    setNotification(null);
+    try {
+      const res = await fetch(`/api/admin/businesses/${businessId}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: selectedPlan,
+          planStatus: selectedPlanStatus,
+        }),
+      });
+      if (res.ok) {
+        setNotification({ type: "success", message: `Plan actualizado a ${selectedPlan} (${selectedPlanStatus}) con éxito.` });
+        fetchDetail();
+      } else {
+        setNotification({ type: "error", message: "Error al actualizar plan." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de red al actualizar plan." });
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleExtendPlan = async (days: number) => {
+    try {
+      const res = await fetch(`/api/admin/businesses/${businessId}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ extendDays: days }),
+      });
+      if (res.ok) {
+        setNotification({ type: "success", message: `Vencimiento del plan extendido por ${days} días.` });
+        fetchDetail();
+      } else {
+        setNotification({ type: "error", message: "Error al extender el plan." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de red." });
+    }
+  };
+
+  const handleToggleSuspend = async () => {
+    const nextStatus = business?.planStatus === "SUSPENDED" ? "ACTIVE" : "SUSPENDED";
+    try {
+      const res = await fetch(`/api/admin/businesses/${businessId}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planStatus: nextStatus }),
+      });
+      if (res.ok) {
+        setNotification({
+          type: "success",
+          message: nextStatus === "ACTIVE" ? "Servicios reactivados con éxito." : "Servicios suspendidos.",
+        });
+        fetchDetail();
+      } else {
+        setNotification({ type: "error", message: "Error al cambiar estado." });
+      }
+    } catch {
+      setNotification({ type: "error", message: "Error de red." });
+    }
+  };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,78 +364,181 @@ export default function DetalleNegocioPage() {
 
       {/* Main Grid: Form + Users + Sales */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Edit Settings */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-5">
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <Building2 className="text-orange-500" size={18} />
-            Configuración del Comercio
-          </h3>
-
-          <form onSubmit={handleUpdate} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase text-zinc-400">Nombre Comercial</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
-              />
+        {/* Left Column: Plan Management & Edit Settings */}
+        <div className="flex flex-col gap-6">
+          {/* Subscription & Plan Card */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-5">
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Crown className="text-orange-500" size={18} />
+                Plan y Suscripción
+              </h3>
+              <span
+                className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${
+                  business.planStatus === "SUSPENDED"
+                    ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                }`}
+              >
+                ● {business.planStatus === "SUSPENDED" ? "Suspendido" : "Activo"}
+              </span>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase text-zinc-400">Teléfono</label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="555-0100"
-                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
-              />
-            </div>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase text-zinc-400">Nivel de Plan</label>
+                <select
+                  value={selectedPlan}
+                  onChange={(e) => setSelectedPlan(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
+                >
+                  <option value="FREE">FREE (Gratuito - 6 Mesas)</option>
+                  <option value="STANDARD">STANDARD ($29.99/mes - 15 Mesas)</option>
+                  <option value="PRO">PRO ($49.99/mes - Mesas ilimitadas + Jukebox)</option>
+                  <option value="ENTERPRISE">ENTERPRISE ($99.99/mes - Multi-sucursal)</option>
+                </select>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase text-zinc-400">Dirección</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Av. Gastronómica 123"
-                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase text-zinc-400">Estado del Servicio</label>
+                <select
+                  value={selectedPlanStatus}
+                  onChange={(e) => setSelectedPlanStatus(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
+                >
+                  <option value="ACTIVE">ACTIVE (Activo y Operativo)</option>
+                  <option value="SUSPENDED">SUSPENDED (Suspendido por Admin)</option>
+                  <option value="EXPIRED">EXPIRED (Vencido)</option>
+                  <option value="CANCELLED">CANCELLED (Cancelado)</option>
+                </select>
+              </div>
 
-            <div className="flex flex-col gap-3 pt-3 border-t border-zinc-800">
-              <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+              <div className="text-xs text-zinc-400 flex items-center justify-between p-2.5 bg-zinc-950 border border-zinc-800/80 rounded-xl mt-1">
+                <span className="flex items-center gap-1.5">
+                  <Calendar size={13} className="text-zinc-500" />
+                  Vencimiento:
+                </span>
+                <span className="font-semibold text-zinc-200">
+                  {business.planExpiresAt
+                    ? new Date(business.planExpiresAt).toLocaleDateString()
+                    : "Sin fecha / Indefinido"}
+                </span>
+              </div>
+
+              {/* Quick Actions for SuperAdmin */}
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => handleExtendPlan(30)}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition text-center"
+                >
+                  +30 Días
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExtendPlan(365)}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition text-center"
+                >
+                  +1 Año
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleSuspend}
+                className={`w-full py-2 rounded-xl text-xs font-semibold border transition ${
+                  business.planStatus === "SUSPENDED"
+                    ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                    : "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30"
+                }`}
+              >
+                {business.planStatus === "SUSPENDED" ? "Reactivar Servicio Ahora" : "Suspender Servicio Temporalmente"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUpdatePlan}
+                disabled={savingPlan}
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white transition shadow-md shadow-orange-500/15 disabled:opacity-50 mt-1"
+              >
+                {savingPlan ? "Guardando Plan..." : "Guardar Cambios de Plan"}
+              </button>
+            </div>
+          </div>
+
+          {/* General Settings */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-5">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Building2 className="text-orange-500" size={18} />
+              Configuración del Comercio
+            </h3>
+
+            <form onSubmit={handleUpdate} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase text-zinc-400">Nombre Comercial</label>
                 <input
-                  type="checkbox"
-                  checked={enableJukebox}
-                  onChange={(e) => setEnableJukebox(e.target.checked)}
-                  className="rounded border-zinc-700 text-orange-500 focus:ring-0"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
                 />
-                <span>Habilitar Rockola / Jukebox YouTube</span>
-              </label>
+              </div>
 
-              <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase text-zinc-400">Teléfono</label>
                 <input
-                  type="checkbox"
-                  checked={enableQrOrders}
-                  onChange={(e) => setEnableQrOrders(e.target.checked)}
-                  className="rounded border-zinc-700 text-orange-500 focus:ring-0"
+                  type="text"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="555-0100"
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
                 />
-                <span>Habilitar Pedidos QR desde la mesa</span>
-              </label>
-            </div>
+              </div>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="mt-2 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition shadow-md shadow-orange-500/15 disabled:opacity-50"
-            >
-              <Save size={14} />
-              {saving ? "Guardando..." : "Guardar Cambios"}
-            </button>
-          </form>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase text-zinc-400">Dirección</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Av. Gastronómica 123"
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex flex-col gap-3 pt-3 border-t border-zinc-800">
+                <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableJukebox}
+                    onChange={(e) => setEnableJukebox(e.target.checked)}
+                    className="rounded border-zinc-700 text-orange-500 focus:ring-0"
+                  />
+                  <span>Habilitar Rockola / Jukebox YouTube</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableQrOrders}
+                    onChange={(e) => setEnableQrOrders(e.target.checked)}
+                    className="rounded border-zinc-700 text-orange-500 focus:ring-0"
+                  />
+                  <span>Habilitar Pedidos QR desde la mesa</span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="mt-2 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition shadow-md shadow-orange-500/15 disabled:opacity-50"
+              >
+                <Save size={14} />
+                {saving ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Right Column: Users & Sales */}
@@ -409,6 +602,47 @@ export default function DetalleNegocioPage() {
                           </span>
                         </td>
                         <td className="p-2.5 text-right font-bold text-white">${s.total.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Subscription Purchases History */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Crown className="text-orange-500" size={18} />
+              Historial de Recibos de Planes ({business.subscriptions?.length || 0})
+            </h3>
+
+            {!business.subscriptions || business.subscriptions.length === 0 ? (
+              <p className="text-xs text-zinc-500">Este comercio no tiene pagos de planes registrados.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-zinc-400">
+                  <thead className="bg-zinc-950 text-zinc-300 font-semibold border-b border-zinc-800">
+                    <tr>
+                      <th className="p-2.5">Recibo</th>
+                      <th className="p-2.5">Plan</th>
+                      <th className="p-2.5">Fecha</th>
+                      <th className="p-2.5">Método</th>
+                      <th className="p-2.5">Estado</th>
+                      <th className="p-2.5 text-right">Importe</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800">
+                    {business.subscriptions.map((sub) => (
+                      <tr key={sub.id} className="hover:bg-zinc-950/40">
+                        <td className="p-2.5 font-semibold text-white font-mono">{sub.invoiceNumber}</td>
+                        <td className="p-2.5 font-bold text-orange-400">{sub.plan}</td>
+                        <td className="p-2.5 text-zinc-500">{new Date(sub.createdAt).toLocaleDateString()}</td>
+                        <td className="p-2.5">{sub.paymentMethod}</td>
+                        <td className="p-2.5">
+                          <span className="text-emerald-400 font-semibold">● {sub.status}</span>
+                        </td>
+                        <td className="p-2.5 text-right font-bold text-white">${sub.amount.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

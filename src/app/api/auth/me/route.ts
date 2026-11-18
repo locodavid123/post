@@ -10,7 +10,17 @@ export async function GET(request: Request) {
   if (user.businessId) {
     business = await prisma.business.findUnique({
       where: { id: user.businessId },
-      select: { id: true, name: true, code: true },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        plan: true,
+        planStatus: true,
+        planExpiresAt: true,
+        billingCycle: true,
+        enableJukebox: true,
+        enableQrOrders: true,
+      },
     });
   }
 
