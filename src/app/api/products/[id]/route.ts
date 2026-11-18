@@ -1,23 +1,20 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getUserFromRequest } from '@/lib/auth';
+import { resolveBusinessId } from '@/lib/business';
 
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getUserFromRequest(request);
-    if (!user || !user.businessId) {
-      return NextResponse.json({ error: 'No autorizado o sin negocio asociado' }, { status: 401 });
-    }
+    const businessId = await resolveBusinessId(request);
 
     const { id } = params;
     const body = await request.json();
     const { name, category, price, stock, description, imageUrl } = body;
 
     const existing = await prisma.product.findUnique({ where: { id } });
-    if (!existing || existing.businessId !== user.businessId) {
+    if (!existing || existing.businessId !== businessId) {
       return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
 
@@ -45,14 +42,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getUserFromRequest(request);
-    if (!user || !user.businessId) {
-      return NextResponse.json({ error: 'No autorizado o sin negocio asociado' }, { status: 401 });
-    }
+    const businessId = await resolveBusinessId(request);
 
     const { id } = params;
     const existing = await prisma.product.findUnique({ where: { id } });
-    if (!existing || existing.businessId !== user.businessId) {
+    if (!existing || existing.businessId !== businessId) {
       return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
 

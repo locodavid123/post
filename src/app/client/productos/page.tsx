@@ -104,35 +104,25 @@ export default function ProductosPage() {
     loadData();
     setIsLoaded(true);
 
-    // Sincronizar catálogo desde PostgreSQL en background
-    if (businessId !== "default") {
-      fetch("/api/products")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((dbProducts) => {
-          if (Array.isArray(dbProducts) && dbProducts.length > 0) {
-            setProducts(dbProducts);
-            localStorage.setItem(prodKey, JSON.stringify(dbProducts));
-          } else {
-            // Si la base de datos está vacía, sembramos los productos iniciales
-            const savedProducts = localStorage.getItem(prodKey);
-            const toSeed: Product[] = savedProducts ? JSON.parse(savedProducts) : INITIAL_PRODUCTS;
-            toSeed.forEach((p) => {
-              fetch("/api/products", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  name: p.name,
-                  category: p.category,
-                  price: p.price,
-                  stock: p.stock,
-                  description: p.description,
-                }),
-              }).catch(() => {});
-            });
-          }
-        })
-        .catch(() => {});
-    }
+    // Sincronizar catálogo desde PostgreSQL
+    fetch("/api/products")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((dbProducts) => {
+        if (Array.isArray(dbProducts) && dbProducts.length > 0) {
+          const mapped: Product[] = dbProducts.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            price: p.price,
+            stock: p.stock,
+            description: p.description || "",
+            imageUrl: p.imageUrl || undefined,
+          }));
+          setProducts(mapped);
+          localStorage.setItem(prodKey, JSON.stringify(mapped));
+        }
+      })
+      .catch((err) => console.error("Error sincronizando productos con PostgreSQL:", err));
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === prodKey || e.key === catKey) {
@@ -217,23 +207,17 @@ export default function ProductosPage() {
         prev.map((p) => (p.id === editingProduct.id ? updatedProduct : p))
       );
 
-      // Si existe en backend, actualizar en PostgreSQL
-      if (businessId && businessId !== "default" && typeof editingProduct.id === "string") {
-        fetch(`/api/products/${editingProduct.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, category, price: numPrice, stock, description }),
-        }).catch((err) => console.error("Error actualizando en BD:", err));
-      }
+      // Actualizar en PostgreSQL
+      fetch(`/api/products/${editingProduct.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, category, price: numPrice, stock, description }),
+      }).catch((err) => console.error("Error actualizando en BD:", err));
     } else {
       // Add
-      const nextId =
-        products.length > 0
-          ? Math.max(...products.map((p) => (typeof p.id === "number" ? p.id : 0))) + 1
-          : 1;
-
+      const tempId = `temp-${Date.now()}`;
       const newProduct: Product = {
-        id: nextId,
+        id: tempId,
         name,
         category,
         price: numPrice,
@@ -242,25 +226,22 @@ export default function ProductosPage() {
       };
 
       // Guardar en PostgreSQL
-      if (businessId && businessId !== "default") {
-        try {
-          const res = await fetch("/api/products", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, category, price: numPrice, stock, description }),
-          });
-          if (res.ok) {
-            const created = await res.json();
-            if (created?.id) {
-              newProduct.id = created.id;
-            }
+      fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, category, price: numPrice, stock, description }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((created) => {
+          if (created?.id) {
+            setProducts((prev) =>
+              prev.map((p) => (p.id === tempId ? { ...p, id: created.id } : p))
+            );
           }
-        } catch (err) {
-          console.error("Error guardando producto en BD:", err);
-        }
-      }
+        })
+        .catch((err) => console.error("Error guardando producto en BD:", err));
 
-      setProducts((prev) => [...prev, newProduct]);
+      setProducts((prev) => [newProduct, ...prev]);
     }
 
     setShowFormModal(false);
@@ -273,11 +254,9 @@ export default function ProductosPage() {
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setShowDeleteConfirm(null);
 
-    if (businessId && businessId !== "default" && typeof id === "string") {
-      fetch(`/api/products/${id}`, { method: "DELETE" }).catch((err) =>
-        console.error("Error eliminando producto de BD:", err)
-      );
-    }
+    fetch(`/api/products/${id}`, { method: "DELETE" }).catch((err) =>
+      console.error("Error eliminando producto de BD:", err)
+    );
   };
 
   // Add category

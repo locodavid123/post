@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getUserFromRequest } from '@/lib/auth';
+import { resolveBusinessId } from '@/lib/business';
 
 export async function GET(request: Request) {
   try {
-    const user = await getUserFromRequest(request);
-    if (!user || !user.businessId) {
-      return NextResponse.json({ error: 'No autorizado o sin negocio asociado' }, { status: 401 });
-    }
+    const businessId = await resolveBusinessId(request);
 
     const products = await prisma.product.findMany({
-      where: { businessId: user.businessId },
+      where: { businessId },
       orderBy: { createdAt: 'desc' },
       include: { categoryRef: true },
     });
@@ -24,16 +21,22 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getUserFromRequest(request);
-    if (!user || !user.businessId) {
-      return NextResponse.json({ error: 'No autorizado o sin negocio asociado' }, { status: 401 });
-    }
+    const businessId = await resolveBusinessId(request);
 
     const body = await request.json();
     const { name, category, price, stock, description, imageUrl } = body;
 
     if (!name || price === undefined) {
       return NextResponse.json({ error: 'El nombre y precio son requeridos' }, { status: 400 });
+    }
+
+    // Buscar categoría si existe para enlazarla
+    let categoryId = null;
+    if (category) {
+      const cat = await prisma.category.findFirst({
+        where: { businessId, name: category },
+      });
+      if (cat) categoryId = cat.id;
     }
 
     const product = await prisma.product.create({
@@ -44,7 +47,8 @@ export async function POST(request: Request) {
         stock: stock || 'disponible',
         description: description || null,
         imageUrl: imageUrl || null,
-        businessId: user.businessId,
+        businessId,
+        categoryId,
       },
     });
 

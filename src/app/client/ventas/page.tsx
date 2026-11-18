@@ -83,28 +83,31 @@ export default function VentasPage() {
     setIsLoaded(true);
 
     // Sincronizar ventas reales desde PostgreSQL
-    if (businessId !== "default") {
-      fetch("/api/sales")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((dbSales) => {
-          if (Array.isArray(dbSales) && dbSales.length > 0) {
-            const mappedSales: Sale[] = dbSales.map((s: any) => ({
-              id: s.invoiceNumber || s.id,
-              table: s.table,
-              total: s.total,
-              paymentMethod: s.paymentMethod,
-              date: s.createdAt,
-              status: s.status,
-              waiter: s.waiter || undefined,
-              saleType: s.saleType || "Mesas",
-              guestCount: s.guestCount || 1,
-            }));
-            setSales(mappedSales);
-            localStorage.setItem(salesKey, JSON.stringify(mappedSales));
-          }
-        })
-        .catch(() => {});
-    }
+    fetch("/api/sales")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((dbSales) => {
+        if (Array.isArray(dbSales) && dbSales.length > 0) {
+          const mappedSales: Sale[] = dbSales.map((s: any) => ({
+            id: s.invoiceNumber || s.id,
+            table: s.table,
+            subtotal: s.subtotal,
+            tip: s.tip,
+            total: s.total,
+            paymentMethod: s.paymentMethod,
+            cashReceived: s.cashReceived,
+            change: s.change,
+            date: s.createdAt,
+            status: s.status,
+            waiter: s.waiter || undefined,
+            saleType: s.saleType || "Mesas",
+            guestCount: s.guestCount || 1,
+            itemsCount: s.itemsCount || 0,
+          }));
+          setSales(mappedSales);
+          localStorage.setItem(salesKey, JSON.stringify(mappedSales));
+        }
+      })
+      .catch((err) => console.error("Error sincronizando ventas con PostgreSQL:", err));
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === salesKey && e.newValue) {
@@ -141,6 +144,13 @@ export default function VentasPage() {
       setSales((prev) =>
         prev.map((s) => (s.id === id ? { ...s, status: "Cancelado" as const } : s))
       );
+
+      // Actualizar estado en PostgreSQL
+      fetch("/api/sales", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "Cancelado" }),
+      }).catch((err) => console.error("Error cancelando venta en PostgreSQL:", err));
     }
   };
 

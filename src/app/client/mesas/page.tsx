@@ -134,18 +134,45 @@ export default function MesasPage() {
 
     setIsLoaded(true);
 
+    // Sincronizar mesas desde PostgreSQL
+    fetch("/api/tables")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((dbTables) => {
+        if (Array.isArray(dbTables) && dbTables.length > 0) {
+          const mappedTables: Table[] = dbTables.map((t: any) => ({
+            id: Number(t.tableId) || 1,
+            number: Number(t.tableId) || 1,
+            capacity: t.capacity || 4,
+            status: (t.status === "occupied" ? "occupied" : "free") as "free" | "occupied",
+            waiter: t.waiter || undefined,
+            guestCount: t.guestCount || undefined,
+            comment: t.comment || undefined,
+            orders:
+              t.orders && t.orders[0]?.items
+                ? t.orders[0].items.map((i: any) => ({
+                    productId: i.productId || i.id,
+                    name: i.productName,
+                    price: i.unitPrice,
+                    quantity: i.quantity,
+                  }))
+                : [],
+          }));
+          setTables(mappedTables);
+          localStorage.setItem(key("tables"), JSON.stringify(mappedTables));
+        }
+      })
+      .catch((err) => console.error("Error cargando mesas desde BD:", err));
+
     // Sincronizar catálogo real desde PostgreSQL
-    if (businessId !== "default") {
-      fetch("/api/products")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((dbProducts) => {
-          if (Array.isArray(dbProducts) && dbProducts.length > 0) {
-            setAvailableProducts(dbProducts);
-            localStorage.setItem(key("products"), JSON.stringify(dbProducts));
-          }
-        })
-        .catch(() => {});
-    }
+    fetch("/api/products")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((dbProducts) => {
+        if (Array.isArray(dbProducts) && dbProducts.length > 0) {
+          setAvailableProducts(dbProducts);
+          localStorage.setItem(key("products"), JSON.stringify(dbProducts));
+        }
+      })
+      .catch((err) => console.error("Error cargando productos desde BD:", err));
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === key("products") && e.newValue) {
@@ -218,7 +245,7 @@ export default function MesasPage() {
     );
 
     // Persistir estado de la mesa en PostgreSQL
-    if (businessId && businessId !== "default" && currentTable) {
+    if (currentTable) {
       fetch("/api/tables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -229,7 +256,7 @@ export default function MesasPage() {
           guestCount,
           comment: comment.trim() || null,
         }),
-      }).catch(() => {});
+      }).catch((err) => console.error("Error persistiendo mesa en BD:", err));
     }
   };
 
@@ -250,7 +277,7 @@ export default function MesasPage() {
       )
     );
 
-    if (businessId && businessId !== "default" && currentTable) {
+    if (currentTable) {
       fetch("/api/tables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -261,7 +288,7 @@ export default function MesasPage() {
           guestCount: 1,
           comment: null,
         }),
-      }).catch(() => {});
+      }).catch((err) => console.error("Error liberando mesa en BD:", err));
     }
 
     setSelectedWaiter("");
@@ -461,38 +488,36 @@ export default function MesasPage() {
     localStorage.setItem(salesKey, JSON.stringify([newSale, ...salesList]));
 
     // Guardar venta y liberar mesa en PostgreSQL
-    if (businessId && businessId !== "default") {
-      fetch("/api/sales", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invoiceNumber: `FAC-${nextFacNum}`,
-          table: `Mesa ${currentTable.number}`,
-          subtotal: tableBillSubtotal,
-          tip: tipAmount,
-          total: totalWithTip,
-          paymentMethod: checkoutPaymentMethod,
-          cashReceived: checkoutPaymentMethod === "Efectivo" ? numCash : undefined,
-          change: checkoutPaymentMethod === "Efectivo" ? changeAmount : undefined,
-          waiter: currentTable.waiter,
-          guestCount: currentTable.guestCount || 1,
-          saleType: "Mesas",
-          itemsCount: currentTable.orders.reduce((sum, i) => sum + i.quantity, 0),
-        }),
-      }).catch(() => {});
+    fetch("/api/sales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        invoiceNumber: `FAC-${nextFacNum}`,
+        table: `Mesa ${currentTable.number}`,
+        subtotal: tableBillSubtotal,
+        tip: tipAmount,
+        total: totalWithTip,
+        paymentMethod: checkoutPaymentMethod,
+        cashReceived: checkoutPaymentMethod === "Efectivo" ? numCash : undefined,
+        change: checkoutPaymentMethod === "Efectivo" ? changeAmount : undefined,
+        waiter: currentTable.waiter,
+        guestCount: currentTable.guestCount || 1,
+        saleType: "Mesas",
+        itemsCount: currentTable.orders.reduce((sum, i) => sum + i.quantity, 0),
+      }),
+    }).catch((err) => console.error("Error guardando venta en PostgreSQL:", err));
 
-      fetch("/api/tables", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tableId: String(currentTable.number),
-          status: "free",
-          waiter: null,
-          guestCount: 1,
-          comment: null,
-        }),
-      }).catch(() => {});
-    }
+    fetch("/api/tables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tableId: String(currentTable.number),
+        status: "free",
+        waiter: null,
+        guestCount: 1,
+        comment: null,
+      }),
+    }).catch((err) => console.error("Error liberando mesa en PostgreSQL:", err));
 
     // Liberar la mesa
     setTables((prev) =>

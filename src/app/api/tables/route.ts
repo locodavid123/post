@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getUserFromRequest } from '@/lib/auth';
+import { resolveBusinessId } from '@/lib/business';
 
 export async function GET(request: Request) {
   try {
-    const user = await getUserFromRequest(request);
-    if (!user || !user.businessId) {
-      return NextResponse.json({ error: 'No autorizado o sin negocio asociado' }, { status: 401 });
-    }
+    const businessId = await resolveBusinessId(request);
 
     const tables = await prisma.tableSession.findMany({
-      where: { businessId: user.businessId },
+      where: { businessId },
       orderBy: { tableId: 'asc' },
       include: {
         products: { include: { product: true } },
@@ -30,10 +27,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getUserFromRequest(request);
-    if (!user || !user.businessId) {
-      return NextResponse.json({ error: 'No autorizado o sin negocio asociado' }, { status: 401 });
-    }
+    const businessId = await resolveBusinessId(request);
 
     const body = await request.json();
     const { tableId, nickname, capacity, status, waiter, comment, guestCount } = body;
@@ -45,7 +39,7 @@ export async function POST(request: Request) {
     const tableSession = await prisma.tableSession.upsert({
       where: {
         businessId_tableId: {
-          businessId: user.businessId,
+          businessId,
           tableId: String(tableId),
         },
       },
@@ -58,7 +52,7 @@ export async function POST(request: Request) {
         guestCount: guestCount !== undefined ? Number(guestCount) : undefined,
       },
       create: {
-        businessId: user.businessId,
+        businessId,
         tableId: String(tableId),
         nickname: nickname || `Mesa ${tableId}`,
         capacity: capacity ? Number(capacity) : 4,
