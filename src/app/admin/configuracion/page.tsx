@@ -45,13 +45,15 @@ export default function AdminConfiguracionPage() {
   const [allowSelfRegistration, setAllowSelfRegistration] = useState(true);
 
   // Colombian Banking Details
+  const [bankName, setBankName] = useState("Bancolombia");
+  const [bankAccount, setBankAccount] = useState("123-456789-01");
+  const [bankType, setBankType] = useState("Ahorros");
+  const [bankHolder, setBankHolder] = useState("EcoPost SAS (NIT: 901.234.567-8)");
   const [nequiNumber, setNequiNumber] = useState("300 123 4567");
   const [nequiHolder, setNequiHolder] = useState("EcoPost Colombia");
-  const [bancolombiaAccount, setBancolombiaAccount] = useState("123-456789-01");
-  const [bancolombiaType, setBancolombiaType] = useState("Ahorros");
-  const [bancolombiaHolder, setBancolombiaHolder] = useState("EcoPost SAS (NIT: 901.234.567-8)");
-  const [daviplataNumber, setDaviplataNumber] = useState("300 123 4567");
-  const [daviplataHolder, setDaviplataHolder] = useState("EcoPost Colombia");
+  const [daviplataNumber, setDaviplataNumber] = useState("");
+  const [daviplataHolder, setDaviplataHolder] = useState("");
+  const [paymentInstructions, setPaymentInstructions] = useState("");
 
   // Wompi Online Gateway
   const [wompiPublicKey, setWompiPublicKey] = useState("");
@@ -71,13 +73,15 @@ export default function AdminConfiguracionPage() {
         setEnterprisePlanPrice(String(data.enterprisePlanPrice || 249000));
         setAllowSelfRegistration(data.allowSelfRegistration !== false);
 
-        setNequiNumber(data.nequiNumber || "300 123 4567");
+        setBankName(data.bankName || "Bancolombia");
+        setBankAccount(data.bankAccount || data.bancolombiaAccount || "");
+        setBankType(data.bankType || data.bancolombiaType || "Ahorros");
+        setBankHolder(data.bankHolder || data.bancolombiaHolder || "");
+        setNequiNumber(data.nequiNumber !== undefined ? data.nequiNumber : "300 123 4567");
         setNequiHolder(data.nequiHolder || "EcoPost Colombia");
-        setBancolombiaAccount(data.bancolombiaAccount || "123-456789-01");
-        setBancolombiaType(data.bancolombiaType || "Ahorros");
-        setBancolombiaHolder(data.bancolombiaHolder || "EcoPost SAS (NIT: 901.234.567-8)");
-        setDaviplataNumber(data.daviplataNumber || "300 123 4567");
-        setDaviplataHolder(data.daviplataHolder || "EcoPost Colombia");
+        setDaviplataNumber(data.daviplataNumber || "");
+        setDaviplataHolder(data.daviplataHolder || "");
+        setPaymentInstructions(data.paymentInstructions || "");
 
         setWompiPublicKey(data.wompiPublicKey || "");
         setWompiSandbox(data.wompiSandbox !== false);
@@ -110,13 +114,15 @@ export default function AdminConfiguracionPage() {
           proPlanPrice: parseFloat(proPlanPrice) || 119000,
           enterprisePlanPrice: parseFloat(enterprisePlanPrice) || 249000,
           allowSelfRegistration,
+          bankName,
+          bankAccount,
+          bankType,
+          bankHolder,
           nequiNumber,
           nequiHolder,
-          bancolombiaAccount,
-          bancolombiaType,
-          bancolombiaHolder,
           daviplataNumber,
           daviplataHolder,
+          paymentInstructions,
           wompiPublicKey,
           wompiSandbox,
         }),
@@ -177,32 +183,94 @@ export default function AdminConfiguracionPage() {
       </div>
 
       <form onSubmit={handleSave} className="flex flex-col gap-6">
-        {/* Canales de Pago Directo (Colombia - Modo Híbrido) */}
+        {/* Canales de Pago Directo (Colombia - Modo Híbrido Flexible) */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-5 shadow-xl">
           <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Smartphone className="text-orange-500" size={18} />
-              Cuentas para Transferencia Directa (Nequi / Bancolombia / Daviplata)
+              Cuentas para Transferencia Directa (Cualquier Banco o Billetera)
             </h3>
             <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2.5 py-0.5 rounded-full border border-orange-500/20 font-bold uppercase">
-              Modo Híbrido
+              Modo Híbrido Flexible
             </span>
           </div>
 
-          <p className="text-xs text-zinc-400">
-            Estos datos bancarios se mostrarán a los restaurantes en la pantalla de adquisición de planes para que realicen transferencias directas y reporten su número de comprobante.
-          </p>
+          <div className="bg-zinc-950 border border-white/[0.06] rounded-xl p-4 text-xs text-zinc-300 flex flex-col gap-1.5 leading-relaxed">
+            <p className="font-semibold text-orange-400">💡 ¿No tienes cuenta en Bancolombia, Nequi ni Daviplata? ¡No hay ningún problema!</p>
+            <ul className="list-disc list-inside text-zinc-400 space-y-1 text-[11px]">
+              <li><strong>Cualquier Banco:</strong> Puedes configurar la cuenta de cualquier entidad bancaria (Banco de Bogotá, Davivienda, BBVA, Scotiabank Colpatria, Nu Colombia, etc.).</li>
+              <li><strong>Billeteras Opcionales:</strong> Si no tienes Nequi o Daviplata, déjalos en blanco; el sistema solo mostrará a los clientes las cuentas que tengas activas.</li>
+              <li><strong>Pasarela Online:</strong> Si activas Wompi o Mercado Pago, la pasarela recauda con PSE y tarjetas y te deposita a la cuenta bancaria de tu preferencia.</li>
+            </ul>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Nequi */}
+            {/* Cuenta Bancaria Principal (Cualquier Banco) */}
+            <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col gap-3 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Building size={14} /> Cuenta Bancaria Principal (Cualquier Banco de Colombia o el Exterior)
+                </span>
+                <span className="text-[10px] text-zinc-500 font-mono">Transferencia ACH / Transfiya / Directa</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-zinc-500">Entidad Bancaria</label>
+                  <input
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="Ej. Bancolombia, Davivienda, Banco de Bogotá, BBVA, Nu..."
+                    className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-zinc-500">Número de Cuenta</label>
+                  <input
+                    type="text"
+                    value={bankAccount}
+                    onChange={(e) => setBankAccount(e.target.value)}
+                    placeholder="Ej. 123-456789-01"
+                    className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-zinc-500">Tipo de Cuenta</label>
+                  <select
+                    value={bankType}
+                    onChange={(e) => setBankType(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="Ahorros">Cuenta de Ahorros</option>
+                    <option value="Corriente">Cuenta Corriente</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-zinc-500">Titular y NIT / Cédula</label>
+                <input
+                  type="text"
+                  value={bankHolder}
+                  onChange={(e) => setBankHolder(e.target.value)}
+                  placeholder="Ej. Mi Empresa SAS (NIT: 900.123.456-7)"
+                  className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
+                />
+              </div>
+            </div>
+
+            {/* Nequi (Opcional) */}
             <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col gap-3">
-              <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">Cuenta Nequi</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">Nequi (Opcional)</span>
+                <span className="text-[10px] text-zinc-500">Dejar vacío si no lo usas</span>
+              </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[11px] text-zinc-500">Número de Celular Nequi</label>
                 <input
                   type="text"
                   value={nequiNumber}
                   onChange={(e) => setNequiNumber(e.target.value)}
+                  placeholder="Ej. 300 123 4567 (o dejar vacío)"
                   className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
                 />
               </div>
@@ -212,70 +280,50 @@ export default function AdminConfiguracionPage() {
                   type="text"
                   value={nequiHolder}
                   onChange={(e) => setNequiHolder(e.target.value)}
+                  placeholder="Ej. Juan Pérez"
                   className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
                 />
               </div>
             </div>
 
-            {/* Bancolombia */}
+            {/* Daviplata (Opcional) */}
             <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col gap-3">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Cuenta Bancolombia</span>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-zinc-500">Número de Cuenta</label>
-                  <input
-                    type="text"
-                    value={bancolombiaAccount}
-                    onChange={(e) => setBancolombiaAccount(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-zinc-500">Tipo de Cuenta</label>
-                  <select
-                    value={bancolombiaType}
-                    onChange={(e) => setBancolombiaType(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
-                  >
-                    <option value="Ahorros">Ahorros</option>
-                    <option value="Corriente">Corriente</option>
-                  </select>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">Daviplata (Opcional)</span>
+                <span className="text-[10px] text-zinc-500">Dejar vacío si no lo usas</span>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-zinc-500">Titular y NIT / Cédula</label>
+                <label className="text-[11px] text-zinc-500">Número Celular Daviplata</label>
                 <input
                   type="text"
-                  value={bancolombiaHolder}
-                  onChange={(e) => setBancolombiaHolder(e.target.value)}
+                  value={daviplataNumber}
+                  onChange={(e) => setDaviplataNumber(e.target.value)}
+                  placeholder="Ej. 310 987 6543 (o dejar vacío)"
+                  className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-zinc-500">Nombre del Titular</label>
+                <input
+                  type="text"
+                  value={daviplataHolder}
+                  onChange={(e) => setDaviplataHolder(e.target.value)}
+                  placeholder="Ej. Juan Pérez"
                   className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
                 />
               </div>
             </div>
 
-            {/* Daviplata */}
-            <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col gap-3 md:col-span-2">
-              <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">Daviplata</span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-zinc-500">Número Celular Daviplata</label>
-                  <input
-                    type="text"
-                    value={daviplataNumber}
-                    onChange={(e) => setDaviplataNumber(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-zinc-500">Nombre del Titular</label>
-                  <input
-                    type="text"
-                    value={daviplataHolder}
-                    onChange={(e) => setDaviplataHolder(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500"
-                  />
-                </div>
-              </div>
+            {/* Instrucciones de Pago Personalizadas */}
+            <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col gap-2 md:col-span-2">
+              <label className="text-xs font-bold text-zinc-300">Instrucciones o Mensaje para el Cliente</label>
+              <textarea
+                value={paymentInstructions}
+                onChange={(e) => setPaymentInstructions(e.target.value)}
+                rows={2}
+                placeholder="Ej. Realiza la transferencia desde cualquier banco vía Transfiya o ACH y registra tu número de comprobante..."
+                className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500 resize-none"
+              />
             </div>
           </div>
         </div>

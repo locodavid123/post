@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { resolveBusinessId } from '@/lib/business';
-import { readConfig } from '@/app/api/admin/config/route';
+import { readConfig } from '@/lib/systemConfig';
 
 export async function GET(request: Request) {
   try {
@@ -39,17 +39,21 @@ export async function GET(request: Request) {
       });
     }
 
-    // Configuración de pagos para Colombia (Modo Híbrido)
+    // Configuración de pagos para Colombia (Modo Híbrido Flexible)
     const sysConfig = readConfig();
     const paymentConfig = {
-      nequiNumber: sysConfig.nequiNumber || '300 123 4567',
+      bankName: sysConfig.bankName || 'Bancolombia',
+      bankAccount: sysConfig.bankAccount || sysConfig.bancolombiaAccount || '123-456789-01',
+      bankType: sysConfig.bankType || sysConfig.bancolombiaType || 'Ahorros',
+      bankHolder: sysConfig.bankHolder || sysConfig.bancolombiaHolder || 'EcoPost SAS (NIT: 901.234.567-8)',
+      nequiNumber: sysConfig.nequiNumber !== undefined ? sysConfig.nequiNumber : '300 123 4567',
       nequiHolder: sysConfig.nequiHolder || 'EcoPost Colombia',
-      bancolombiaAccount: sysConfig.bancolombiaAccount || '123-456789-01',
-      bancolombiaType: sysConfig.bancolombiaType || 'Ahorros',
-      bancolombiaHolder: sysConfig.bancolombiaHolder || 'EcoPost SAS (NIT: 901.234.567-8)',
-      daviplataNumber: sysConfig.daviplataNumber || '300 123 4567',
-      daviplataHolder: sysConfig.daviplataHolder || 'EcoPost Colombia',
-      paymentInstructions: sysConfig.paymentInstructions || 'Realiza la transferencia desde tu app bancaria y registra el número de comprobante para validación inmediata.',
+      bancolombiaAccount: sysConfig.bankAccount || sysConfig.bancolombiaAccount || '123-456789-01',
+      bancolombiaType: sysConfig.bankType || sysConfig.bancolombiaType || 'Ahorros',
+      bancolombiaHolder: sysConfig.bankHolder || sysConfig.bancolombiaHolder || 'EcoPost SAS (NIT: 901.234.567-8)',
+      daviplataNumber: sysConfig.daviplataNumber || '',
+      daviplataHolder: sysConfig.daviplataHolder || '',
+      paymentInstructions: sysConfig.paymentInstructions || 'Realiza la transferencia desde tu app bancaria o billetera y registra el número de comprobante para validación inmediata.',
       wompiPublicKey: sysConfig.wompiPublicKey || process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY || '',
       wompiSandbox: sysConfig.wompiSandbox !== false,
     };

@@ -35,16 +35,20 @@ interface SubscriptionInvoice {
 }
 
 interface PaymentConfig {
-  nequiNumber: string;
-  nequiHolder: string;
-  bancolombiaAccount: string;
-  bancolombiaType: string;
-  bancolombiaHolder: string;
-  daviplataNumber: string;
-  daviplataHolder: string;
-  paymentInstructions: string;
-  wompiPublicKey: string;
-  wompiSandbox: boolean;
+  bankName?: string;
+  bankAccount?: string;
+  bankType?: string;
+  bankHolder?: string;
+  nequiNumber?: string;
+  nequiHolder?: string;
+  bancolombiaAccount?: string;
+  bancolombiaType?: string;
+  bancolombiaHolder?: string;
+  daviplataNumber?: string;
+  daviplataHolder?: string;
+  paymentInstructions?: string;
+  wompiPublicKey?: string;
+  wompiSandbox?: boolean;
 }
 
 interface PlanInfo {
@@ -70,7 +74,7 @@ export default function ClientPlanesPage() {
 
   // Estados del Modo Híbrido
   const [paymentMode, setPaymentMode] = useState<"transfer" | "gateway">("transfer");
-  const [transferChannel, setTransferChannel] = useState<"Nequi" | "Bancolombia" | "Daviplata">("Nequi");
+  const [transferChannel, setTransferChannel] = useState<string>("Bancolombia");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
 
@@ -313,7 +317,12 @@ export default function ClientPlanesPage() {
               <Smartphone size={14} /> Canales de Pago Directo EcoPost:
             </p>
             <p className="text-[11px] text-zinc-400">
-              Nequi: <strong className="text-white">{paymentConfig.nequiNumber}</strong> • Bancolombia Ahorros: <strong className="text-white">{paymentConfig.bancolombiaAccount}</strong>
+              {paymentConfig.nequiNumber ? (
+                <>Nequi: <strong className="text-white">{paymentConfig.nequiNumber}</strong> • </>
+              ) : null}
+              {paymentConfig.bankAccount || paymentConfig.bancolombiaAccount ? (
+                <>{paymentConfig.bankName || "Bancolombia"} ({paymentConfig.bankType || "Ahorros"}): <strong className="text-white">{paymentConfig.bankAccount || paymentConfig.bancolombiaAccount}</strong></>
+              ) : null}
             </p>
           </div>
         )}
@@ -575,47 +584,72 @@ export default function ClientPlanesPage() {
                       </p>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {/* Nequi Card */}
-                        <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-xl flex flex-col justify-between">
-                          <div>
-                            <span className="text-[10px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                              Nequi
-                            </span>
-                            <p className="text-sm font-black text-white mt-1.5">{paymentConfig?.nequiNumber || "300 123 4567"}</p>
-                            <p className="text-[10px] text-zinc-400">{paymentConfig?.nequiHolder || "EcoPost Colombia"}</p>
+                        {/* Dynamic Bank Account Card */}
+                        {(paymentConfig?.bankAccount || paymentConfig?.bancolombiaAccount) && (
+                          <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-xl flex flex-col justify-between">
+                            <div>
+                              <span className="text-[10px] font-black uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                {paymentConfig?.bankName || "Bancolombia"} ({paymentConfig?.bankType || "Ahorros"})
+                              </span>
+                              <p className="text-sm font-black text-white mt-1.5">{paymentConfig?.bankAccount || paymentConfig?.bancolombiaAccount}</p>
+                              <p className="text-[10px] text-zinc-400 truncate">{paymentConfig?.bankHolder || paymentConfig?.bancolombiaHolder || "EcoPost SAS"}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard((paymentConfig?.bankAccount || paymentConfig?.bancolombiaAccount || "").replace(/[-\s]/g, ""), paymentConfig?.bankName || "Banco")}
+                              className="mt-2 text-[10px] text-orange-400 hover:text-orange-300 font-semibold flex items-center gap-1 self-start"
+                            >
+                              <Copy size={11} />
+                              <span>{copiedText === (paymentConfig?.bankName || "Banco") ? "¡Copiado!" : "Copiar Cuenta"}</span>
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(paymentConfig?.nequiNumber?.replace(/\s/g, "") || "3001234567", "Nequi")}
-                            className="mt-2 text-[10px] text-orange-400 hover:text-orange-300 font-semibold flex items-center gap-1 self-start"
-                          >
-                            <Copy size={11} />
-                            <span>{copiedText === "Nequi" ? "¡Copiado!" : "Copiar Número"}</span>
-                          </button>
-                        </div>
+                        )}
 
-                        {/* Bancolombia Card */}
-                        <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-xl flex flex-col justify-between">
-                          <div>
-                            <span className="text-[10px] font-black uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                              Bancolombia Ahorros
-                            </span>
-                            <p className="text-sm font-black text-white mt-1.5">{paymentConfig?.bancolombiaAccount || "123-456789-01"}</p>
-                            <p className="text-[10px] text-zinc-400 truncate">{paymentConfig?.bancolombiaHolder || "EcoPost SAS"}</p>
+                        {/* Nequi Card (Only if configured) */}
+                        {paymentConfig?.nequiNumber && (
+                          <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-xl flex flex-col justify-between">
+                            <div>
+                              <span className="text-[10px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                                Nequi
+                              </span>
+                              <p className="text-sm font-black text-white mt-1.5">{paymentConfig.nequiNumber}</p>
+                              <p className="text-[10px] text-zinc-400">{paymentConfig?.nequiHolder || "EcoPost Colombia"}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard((paymentConfig.nequiNumber || "").replace(/\s/g, ""), "Nequi")}
+                              className="mt-2 text-[10px] text-orange-400 hover:text-orange-300 font-semibold flex items-center gap-1 self-start"
+                            >
+                              <Copy size={11} />
+                              <span>{copiedText === "Nequi" ? "¡Copiado!" : "Copiar Número"}</span>
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(paymentConfig?.bancolombiaAccount?.replace(/[-\s]/g, "") || "12345678901", "Bancolombia")}
-                            className="mt-2 text-[10px] text-orange-400 hover:text-orange-300 font-semibold flex items-center gap-1 self-start"
-                          >
-                            <Copy size={11} />
-                            <span>{copiedText === "Bancolombia" ? "¡Copiado!" : "Copiar Cuenta"}</span>
-                          </button>
-                        </div>
+                        )}
+
+                        {/* Daviplata Card (Only if configured) */}
+                        {paymentConfig?.daviplataNumber && (
+                          <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-xl flex flex-col justify-between">
+                            <div>
+                              <span className="text-[10px] font-black uppercase text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+                                Daviplata
+                              </span>
+                              <p className="text-sm font-black text-white mt-1.5">{paymentConfig.daviplataNumber}</p>
+                              <p className="text-[10px] text-zinc-400">{paymentConfig?.daviplataHolder || "EcoPost Colombia"}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard((paymentConfig.daviplataNumber || "").replace(/\s/g, ""), "Daviplata")}
+                              className="mt-2 text-[10px] text-orange-400 hover:text-orange-300 font-semibold flex items-center gap-1 self-start"
+                            >
+                              <Copy size={11} />
+                              <span>{copiedText === "Daviplata" ? "¡Copiado!" : "Copiar Número"}</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                        Transfiere el valor exacto desde tu aplicación bancaria y registra el número de comprobante abajo. El SuperAdmin validará los fondos y tu servicio quedará habilitado.
+                        {paymentConfig?.paymentInstructions || "Transfiere el valor exacto desde tu aplicación bancaria o billetera y registra el número de comprobante abajo. El SuperAdmin validará los fondos y tu servicio quedará habilitado."}
                       </p>
                     </div>
 
@@ -625,8 +659,13 @@ export default function ClientPlanesPage() {
                         <label className="text-xs font-semibold text-zinc-400 block mb-1">
                           Canal desde el cual transferiste:
                         </label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {(["Nequi", "Bancolombia", "Daviplata"] as const).map((channel) => (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {[
+                            paymentConfig?.bankName || "Banco",
+                            ...(paymentConfig?.nequiNumber ? ["Nequi"] : []),
+                            ...(paymentConfig?.daviplataNumber ? ["Daviplata"] : []),
+                            "Otro / Transfiya",
+                          ].map((channel) => (
                             <button
                               key={channel}
                               type="button"
