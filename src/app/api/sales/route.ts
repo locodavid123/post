@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { resolveBusinessId } from '@/lib/business';
+import { resolveBusinessId, getBusinessStatus } from '@/lib/business';
 
 export async function GET(request: Request) {
   try {
@@ -21,6 +21,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const businessId = await resolveBusinessId(request);
+
+    const { isSuspended, isExpired } = await getBusinessStatus(businessId);
+    if (isSuspended || isExpired) {
+      return NextResponse.json(
+        {
+          error: isSuspended
+            ? 'El comercio se encuentra suspendido por el administrador. Regularice su cuenta para procesar ventas.'
+            : 'El período de servicio o prueba ha finalizado. Adquiera un plan para facturar ventas.',
+        },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
     const {

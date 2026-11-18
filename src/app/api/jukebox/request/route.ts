@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
+import { getBusinessStatus } from '@/lib/business';
 
 export async function POST(request: NextRequest) {
     try {
@@ -47,6 +48,12 @@ export async function POST(request: NextRequest) {
                 });
             }
             businessId = defaultBusiness.id;
+        }
+
+        // Validar si el negocio está suspendido
+        const { isSuspended } = await getBusinessStatus(businessId);
+        if (isSuspended) {
+            return NextResponse.json({ error: 'La Rockola se encuentra inactiva porque el servicio del comercio está suspendido.' }, { status: 403 });
         }
 
         const effectiveTableId = tableId || 'admin';

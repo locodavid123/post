@@ -52,3 +52,40 @@ export async function resolveBusinessId(request: Request): Promise<string> {
 
   return business.id;
 }
+
+/**
+ * Consulta el estado operativo del negocio (Activo, Suspendido, Expirado).
+ */
+export async function getBusinessStatus(businessId: string): Promise<{
+  isSuspended: boolean;
+  isExpired: boolean;
+  planStatus: string;
+  plan: string;
+  name: string;
+}> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { id: true, name: true, plan: true, planStatus: true, planExpiresAt: true },
+  });
+
+  if (!business) {
+    return { isSuspended: false, isExpired: false, planStatus: 'ACTIVE', plan: 'FREE', name: '' };
+  }
+
+  const isSuspended = business.planStatus === 'SUSPENDED';
+  const isExpired =
+    business.planStatus === 'EXPIRED' ||
+    Boolean(
+      business.planExpiresAt &&
+      new Date(business.planExpiresAt) < new Date() &&
+      business.planStatus !== 'SUSPENDED'
+    );
+
+  return {
+    isSuspended,
+    isExpired,
+    planStatus: business.planStatus,
+    plan: business.plan,
+    name: business.name,
+  };
+}

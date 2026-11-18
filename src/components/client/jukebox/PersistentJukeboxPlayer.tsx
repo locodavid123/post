@@ -14,13 +14,17 @@ import {
   Disc,
 } from "lucide-react";
 
-export default function PersistentJukeboxPlayer() {
+interface PersistentJukeboxPlayerProps {
+  isLocked?: boolean;
+}
+
+export default function PersistentJukeboxPlayer({ isLocked = false }: PersistentJukeboxPlayerProps) {
   const { currentSong, handleNext, isProcessing } = useJukebox();
   const pathname = usePathname();
   const [isMinimized, setIsMinimized] = useState(false);
 
-  // Si no hay canción en reproducción, no renderizamos el reproductor
-  if (!currentSong) return null;
+  // Si el servicio está bloqueado o suspendido, o no hay canción, no reproducir
+  if (isLocked || !currentSong) return null;
 
   const isJukeboxPage = pathname === "/client/jukebox";
   const requesterText = currentSong.requestedBy?.nickname
