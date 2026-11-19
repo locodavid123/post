@@ -17,8 +17,27 @@ const mono = Fira_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EcoPost | Gestión gastronómica",
-  description: "Plataforma para gestionar pedidos, mesas, ventas y operaciones de comercios.",
+  title: "EcoPost — Sistema POS y Rockola para Restaurantes, Bares y Cafés",
+  description:
+    "El sistema POS y Rockola digital más completo para restaurantes, bares y cafés. Gestiona mesas, pedidos QR, comandas de cocina, inventario, facturación y música en vivo.",
+  keywords: [
+    "EcoPost",
+    "sistema POS",
+    "software restaurante",
+    "rockola interactiva",
+    "jukebox restaurante",
+    "gestión de mesas",
+    "pedidos QR",
+    "punto de venta Colombia",
+  ],
+  openGraph: {
+    title: "EcoPost — Sistema POS y Rockola para Restaurantes",
+    description:
+      "Gestiona mesas, comandas, pedidos QR, ventas y rockola interactiva en tiempo real.",
+    siteName: "EcoPost",
+    locale: "es_CO",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
