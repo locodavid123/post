@@ -224,3 +224,12 @@ model SubscriptionInvoice {
   businessId      String
   business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
+
+// --- Configuración Global del Sistema (Migrada a PostgreSQL) ---
+
+model SystemConfig {
+  id        String   @id @default("default")
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

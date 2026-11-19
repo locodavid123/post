@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     }
 
     // Configuración de pagos para Colombia (Modo Híbrido Flexible)
-    const sysConfig = readConfig();
+    const sysConfig = await readConfig();
     const paymentConfig = {
       bankName: sysConfig.bankName || 'Bancolombia',
       bankAccount: sysConfig.bankAccount || sysConfig.bancolombiaAccount || '123-456789-01',

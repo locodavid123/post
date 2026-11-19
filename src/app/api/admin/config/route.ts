@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
   }
 
-  const config = readConfig();
+  const config = await readConfig();
   // Mask secret key if set
   const safeConfig = {
     ...config,
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const current = readConfig();
+    const current = await readConfig();
 
     const updated = {
       ...current,
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       stripeSecretKey: body.stripeSecretKey && !body.stripeSecretKey.includes('••••') ? String(body.stripeSecretKey).trim() : current.stripeSecretKey,
     };
 
-    writeConfig(updated);
+    await writeConfig(updated);
     return NextResponse.json({ message: 'Configuración guardada con éxito', config: updated });
   } catch (err) {
     console.error('Error saving config:', err);
