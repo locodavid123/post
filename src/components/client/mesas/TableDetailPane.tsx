@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Users,
   UserCheck,
@@ -11,8 +11,17 @@ import {
   StickyNote,
   Unlock,
   QrCode,
+  AlertTriangle,
 } from "lucide-react";
 import { Table, WAITER_OPTIONS } from "./types";
+
+export function formatCurrency(amount: number): string {
+  if (isNaN(amount) || amount === null || amount === undefined) return "$0";
+  const formatted = new Intl.NumberFormat("es-CO", {
+    maximumFractionDigits: 0,
+  }).format(Math.round(amount));
+  return `$${formatted}`;
+}
 
 interface TableDetailPaneProps {
   currentTable: Table;
@@ -49,11 +58,20 @@ export default function TableDetailPane({
   openCheckoutModal,
   onOpenQRModal,
 }: TableDetailPaneProps) {
+  const [showConfirmRelease, setShowConfirmRelease] = useState(false);
+
   const isOccupied = currentTable.status === "occupied";
-  const totalItemsCount = (currentTable.orders || []).reduce(
-    (sum, o) => sum + o.quantity,
-    0
-  );
+  const orders = currentTable.orders || [];
+  const totalItemsCount = orders.reduce((sum, o) => sum + o.quantity, 0);
+
+  // Manejo de liberación con confirmación si hay consumos pendientes
+  const handleReleaseTableClick = () => {
+    if (orders.length > 0) {
+      setShowConfirmRelease(true);
+    } else {
+      handleCloseTable();
+    }
+  };
 
   return (
     <aside className="relative rounded-3xl border border-white/[0.08] bg-[#10131b]/95 p-5 backdrop-blur-xl shadow-2xl flex flex-col justify-between overflow-hidden transition-all duration-300">
@@ -196,15 +214,18 @@ export default function TableDetailPane({
               </span>
             </div>
 
-            <div className="mt-3 flex items-baseline justify-between">
-              <div>
+            {/* Ajuste 1 y 2: Espaciado con gap-4 y formato de moneda tabular-nums sin desbordes */}
+            <div className="mt-3 flex items-baseline justify-between gap-4">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-zinc-400 font-medium">Número de mesa</p>
-                <h2 className="text-3xl font-extrabold text-white">Mesa #{currentTable.number}</h2>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white truncate">
+                  Mesa #{currentTable.number}
+                </h2>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <p className="text-[10px] uppercase tracking-wider text-zinc-500">Consumo actual</p>
-                <p className="text-2xl font-black text-orange-400">
-                  ${tableBillSubtotal.toFixed(2)}
+                <p className="text-xl sm:text-2xl font-black text-orange-400 tabular-nums">
+                  {formatCurrency(tableBillSubtotal)}
                 </p>
               </div>
             </div>
@@ -241,18 +262,18 @@ export default function TableDetailPane({
             </div>
           )}
 
-          {/* Listado de Productos en la Cuenta */}
+          {/* Listado de Productos en la Cuenta (Consumos) */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between pt-1">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
                 Consumos ({totalItemsCount})
               </span>
-              <span className="text-xs font-semibold text-orange-400">
-                ${tableBillSubtotal.toFixed(2)}
+              <span className="text-xs font-semibold text-orange-400 tabular-nums">
+                {formatCurrency(tableBillSubtotal)}
               </span>
             </div>
 
-            {!currentTable.orders || currentTable.orders.length === 0 ? (
+            {orders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 px-4 rounded-2xl border border-dashed border-white/[0.08] text-center gap-2 bg-zinc-950/40">
                 <Utensils size={24} className="text-zinc-600" />
                 <p className="text-xs text-zinc-400 font-medium">Aún no hay productos en la cuenta.</p>
@@ -260,33 +281,42 @@ export default function TableDetailPane({
               </div>
             ) : (
               <div className="flex flex-col gap-2 max-h-44 overflow-y-auto pr-1">
-                {currentTable.orders.map((item) => (
+                {orders.map((item) => (
                   <div
                     key={item.productId}
                     className="flex items-center justify-between p-2.5 bg-zinc-950/80 rounded-xl border border-white/[0.06] gap-2"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-white truncate">{item.name}</p>
-                      <p className="text-[10px] text-zinc-400">
-                        ${item.price.toFixed(2)} × {item.quantity} ={" "}
+                      <p className="text-[10px] text-zinc-400 tabular-nums">
+                        {formatCurrency(item.price)} × {item.quantity} ={" "}
                         <span className="font-semibold text-orange-400">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          {formatCurrency(item.price * item.quantity)}
                         </span>
                       </p>
                     </div>
 
+                    {/* Ajuste 3: Selector de cantidad con ícono Trash2 en rojo cuando la cantidad es 1 */}
                     <div className="flex items-center gap-1 bg-zinc-900 border border-white/[0.08] rounded-lg p-0.5 shrink-0">
                       <button
                         type="button"
                         onClick={() =>
                           handleUpdateOrderItemQuantity(item.productId, item.quantity - 1)
                         }
-                        className="w-5 h-5 rounded-md hover:bg-zinc-800 text-[11px] font-bold text-zinc-400 hover:text-white transition flex items-center justify-center"
-                        title="Restar o eliminar"
+                        className={`w-6 h-6 rounded-md transition flex items-center justify-center ${
+                          item.quantity === 1
+                            ? "text-rose-500 hover:bg-rose-500/20 hover:text-rose-400"
+                            : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                        }`}
+                        title={item.quantity === 1 ? "Eliminar producto de la cuenta" : "Restar cantidad"}
                       >
-                        <Minus size={11} />
+                        {item.quantity === 1 ? (
+                          <Trash2 size={12} className="text-rose-500" />
+                        ) : (
+                          <Minus size={11} />
+                        )}
                       </button>
-                      <span className="text-xs font-bold text-white min-w-4 text-center">
+                      <span className="text-xs font-bold text-white min-w-4 text-center tabular-nums">
                         {item.quantity}
                       </span>
                       <button
@@ -294,8 +324,8 @@ export default function TableDetailPane({
                         onClick={() =>
                           handleUpdateOrderItemQuantity(item.productId, item.quantity + 1)
                         }
-                        className="w-5 h-5 rounded-md hover:bg-zinc-800 text-[11px] font-bold text-zinc-400 hover:text-white transition flex items-center justify-center"
-                        title="Sumar"
+                        className="w-6 h-6 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-white transition flex items-center justify-center"
+                        title="Sumar cantidad"
                       >
                         <Plus size={11} />
                       </button>
@@ -318,21 +348,21 @@ export default function TableDetailPane({
               <span>Agregar productos</span>
             </button>
 
-            {/* Botón Cierre de mesa o pagar */}
+            {/* Botón Cierre de mesa o pagar con formato de moneda legible */}
             <button
               type="button"
               onClick={openCheckoutModal}
-              disabled={!currentTable.orders || currentTable.orders.length === 0}
+              disabled={orders.length === 0}
               className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-3.5 text-xs font-extrabold text-white transition shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
               <CreditCard size={15} />
-              <span>Cierre de mesa o pagar (${tableBillSubtotal.toFixed(2)})</span>
+              <span>Cierre de mesa o pagar ({formatCurrency(tableBillSubtotal)})</span>
             </button>
 
-            {/* Liberar mesa sin cobrar */}
+            {/* Ajuste 4: Liberar mesa sin cobrar con confirmación si hay saldo/consumos */}
             <button
               type="button"
-              onClick={handleCloseTable}
+              onClick={handleReleaseTableClick}
               className="w-full rounded-xl py-1.5 text-[11px] font-semibold text-zinc-500 hover:text-rose-400 transition flex items-center justify-center gap-1.5"
             >
               <Unlock size={12} />
@@ -350,6 +380,59 @@ export default function TableDetailPane({
                 <span>Ver QR de esta mesa</span>
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Diálogo modal de confirmación al liberar mesa con saldo */}
+      {showConfirmRelease && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-3xl border border-rose-500/30 bg-[#12151e] p-6 shadow-2xl flex flex-col gap-4 text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center text-rose-400 shrink-0">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-white">¿Liberar mesa con saldo?</h4>
+                <p className="text-xs text-zinc-400">Mesa #{currentTable.number}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              Esta mesa tiene{" "}
+              <strong className="text-white font-semibold">
+                {totalItemsCount} {totalItemsCount === 1 ? "producto cargado" : "productos cargados"}
+              </strong>{" "}
+              por un total acumulado de{" "}
+              <strong className="text-orange-400 font-bold tabular-nums">
+                {formatCurrency(tableBillSubtotal)}
+              </strong>{" "}
+              que aún no han sido cobrados.
+            </p>
+
+            <p className="text-[11px] text-zinc-400 leading-relaxed bg-zinc-950/80 p-3 rounded-xl border border-white/[0.04]">
+              Al liberar la mesa sin cobrar, se descartarán los consumos pendientes de esta sesión y la mesa quedará disponible.
+            </p>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowConfirmRelease(false)}
+                className="flex-1 rounded-xl border border-white/[0.08] bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold text-xs py-2.5 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmRelease(false);
+                  handleCloseTable();
+                }}
+                className="flex-1 rounded-xl bg-rose-500 hover:bg-rose-600 font-bold text-white text-xs py-2.5 transition shadow-lg shadow-rose-500/25 active:scale-98"
+              >
+                Sí, liberar mesa
+              </button>
+            </div>
           </div>
         </div>
       )}
