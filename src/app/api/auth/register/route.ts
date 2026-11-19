@@ -2,10 +2,19 @@ import { config } from "dotenv";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { signToken } from "@/lib/jwt";
+import { getClientIp, checkRateLimit, createRateLimitResponse } from "@/lib/rateLimit";
+import { validateAdminSecret } from "@/lib/auth";
 
 config();
 
 export async function POST(request: Request) {
+  // Limitador de intentos por IP (máximo 10 intentos cada 15 minutos)
+  const clientIp = getClientIp(request);
+  const rateLimit = checkRateLimit(`register:${clientIp}`, 10, 15 * 60 * 1000);
+  if (!rateLimit.allowed) {
+    return createRateLimitResponse(rateLimit);
+  }
+
   const body = await request.json().catch(() => ({}));
   // UI sends: businessName, managerName, phone, email, password, promoCode, acceptTerms
   // also support: name, adminSecret
@@ -16,7 +25,6 @@ export async function POST(request: Request) {
     email,
     password,
     promoCode,
-    acceptTerms,
     name,
     adminSecret,
   } = body;
@@ -24,6 +32,19 @@ export async function POST(request: Request) {
   // Basic validation
   if (!email || !password) {
     return Response.json({ message: "Email y contraseña son obligatorios." }, { status: 400 });
+  }
+
+  // Validación 100% en backend de ADMIN_SECRET
+  let role = "USER";
+  if (adminSecret) {
+    if (validateAdminSecret(adminSecret)) {
+      role = "ADMIN";
+    } else {
+      return Response.json(
+        { message: "Clave secreta de administrador inválida." },
+        { status: 403 }
+      );
+    }
   }
 
   try {
@@ -36,7 +57,6 @@ export async function POST(request: Request) {
     const hash = await bcrypt.hash(password, salt);
 
     const resolvedName = managerName || name || businessName || null;
-    const role = adminSecret && process.env.ADMIN_SECRET && adminSecret === process.env.ADMIN_SECRET ? "ADMIN" : "USER";
 
     // Find or create business (if provided)
     // IMPORTANT: only link by promoCode to avoid accidental grouping by name.

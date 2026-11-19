@@ -1,4 +1,5 @@
-import prisma from '@/lib/prisma';
+import crypto from 'crypto';
+import prisma from './prisma';
 import { verifyToken } from './jwt';
 
 export async function getUserFromRequest(request: Request) {
@@ -38,4 +39,34 @@ export function requireRole(user: any, role: string) {
   if (!user) return false;
   if (role === 'ADMIN') return user.role === 'ADMIN' || user.role === 'SUPERADMIN';
   return user.role === role;
+}
+
+/**
+ * Valida de forma 100% segura en el backend el ADMIN_SECRET usando comparación en tiempo constante (timing safe).
+ */
+export function validateAdminSecret(providedSecret: unknown): boolean {
+  const serverSecret = process.env.ADMIN_SECRET;
+  if (!serverSecret || typeof providedSecret !== 'string') {
+    return false;
+  }
+
+  const cleanProvided = providedSecret.trim();
+  const cleanServer = serverSecret.trim();
+
+  if (!cleanProvided || !cleanServer) {
+    return false;
+  }
+
+  try {
+    const a = Buffer.from(cleanProvided, 'utf-8');
+    const b = Buffer.from(cleanServer, 'utf-8');
+
+    if (a.length !== b.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }

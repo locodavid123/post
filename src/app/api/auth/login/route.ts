@@ -1,10 +1,24 @@
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { signToken } from "@/lib/jwt";
+import { getClientIp, checkRateLimit, createRateLimitResponse } from "@/lib/rateLimit";
+import { validateAdminSecret } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  // Limitador de intentos por IP (máximo 10 intentos cada 15 minutos)
+  const clientIp = getClientIp(request);
+  const rateLimit = checkRateLimit(`login:${clientIp}`, 10, 15 * 60 * 1000);
+  if (!rateLimit.allowed) {
+    return createRateLimitResponse(rateLimit);
+  }
+
   const body = await request.json().catch(() => ({}));
-  const { email, password } = body;
+  const { email, password, adminSecret } = body;
+
+  // Validación 100% en backend de ADMIN_SECRET si es provisto
+  if (adminSecret && !validateAdminSecret(adminSecret)) {
+    return Response.json({ message: "Clave secreta de administrador inválida." }, { status: 403 });
+  }
 
   if (!email || !password) {
     return Response.json({ message: "Email y contraseña son obligatorios." }, { status: 400 });

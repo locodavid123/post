@@ -1,5 +1,5 @@
 {
-  "name": "post",
+  "name": "ecopost",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -19,7 +19,7 @@
     "dotenv": "^16.4.5",
     "jsonwebtoken": "^9.0.0",
     "lucide-react": "^1.74.0",
-    "next": "14.2.5",
+    "next": "14.2.35",
     "pg": "^8.22.0",
     "qrcode.react": "^4.2.0",
     "react": "^18",
@@ -34,7 +34,7 @@
     "autoprefixer": "^10.5.2",
     "cross-env": "^7.0.3",
     "eslint": "^8",
-    "eslint-config-next": "14.2.5",
+    "eslint-config-next": "14.2.35",
     "postcss": "^8",
     "prisma": "^7.8.0",
     "puppeteer-core": "^25.18.1",
