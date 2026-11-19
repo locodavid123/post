@@ -32,6 +32,10 @@ export default function MesasPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
 
+  // Estados para sincronización de pedidos con la base de datos
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [orderSyncError, setOrderSyncError] = useState<string | null>(null);
+
   // Add table modal state
   const [newCapacity, setNewCapacity] = useState(4);
 
@@ -117,7 +121,7 @@ export default function MesasPage() {
 
     setIsLoaded(true);
 
-    // Sincronizar mesas desde PostgreSQL
+    // Sincronizar mesas y pedidos activos desde PostgreSQL
     fetch("/api/tables")
       .then((res) => (res.ok ? res.json() : null))
       .then((dbTables) => {
@@ -127,24 +131,52 @@ export default function MesasPage() {
             return !isNaN(num) && num > 0 && t.tableId !== "admin";
           });
 
-          const mappedTables: Table[] = salonTables.map((t: any) => ({
-            id: Number(t.tableId),
-            number: Number(t.tableId),
-            capacity: t.capacity || 4,
-            status: (t.status === "occupied" ? "occupied" : "free") as "free" | "occupied",
-            waiter: t.waiter || undefined,
-            guestCount: t.guestCount || undefined,
-            comment: t.comment || undefined,
-            orders:
-              t.orders && t.orders[0]?.items
-                ? t.orders[0].items.map((i: any) => ({
-                    productId: i.productId || i.id,
-                    name: i.productName,
-                    price: i.unitPrice,
-                    quantity: i.quantity,
-                  }))
-                : [],
-          }));
+          const mappedTables: Table[] = salonTables.map((t: any) => {
+            // Reconstruir consumos activos desde todas las órdenes no pagadas ni canceladas
+            const activeItems: {
+              productId: string | number;
+              name: string;
+              price: number;
+              quantity: number;
+            }[] = [];
+
+            if (Array.isArray(t.orders)) {
+              t.orders.forEach((ord: any) => {
+                if (Array.isArray(ord.items)) {
+                  ord.items.forEach((i: any) => {
+                    const pId = i.productId || i.id;
+                    const existing = activeItems.find(
+                      (x) => String(x.productId) === String(pId) || x.name === i.productName
+                    );
+                    if (existing) {
+                      existing.quantity += Number(i.quantity) || 1;
+                    } else {
+                      activeItems.push({
+                        productId: pId,
+                        name: i.productName,
+                        price: Number(i.unitPrice) || 0,
+                        quantity: Number(i.quantity) || 1,
+                      });
+                    }
+                  });
+                }
+              });
+            }
+
+            const hasActiveOrders = activeItems.length > 0;
+            const status = (hasActiveOrders || t.status === "occupied" ? "occupied" : "free") as "free" | "occupied";
+
+            return {
+              id: Number(t.tableId),
+              number: Number(t.tableId),
+              capacity: t.capacity || 4,
+              status,
+              waiter: t.waiter || (hasActiveOrders ? "Mesero" : undefined),
+              guestCount: t.guestCount || undefined,
+              comment: t.comment || undefined,
+              orders: activeItems,
+            };
+          });
 
           // Evitar duplicados por número de mesa
           const uniqueTables = mappedTables.filter(
@@ -259,6 +291,8 @@ export default function MesasPage() {
 
   // Liberar / Cerrar mesa sin cobrar
   const handleCloseTable = () => {
+    const tableNum = currentTable ? String(currentTable.number) : undefined;
+
     setTables((prev) =>
       prev.map((t) =>
         t.id === activeTableId
@@ -268,18 +302,29 @@ export default function MesasPage() {
               waiter: undefined,
               guestCount: undefined,
               comment: undefined,
-              orders: undefined,
+              orders: [],
             }
           : t
       )
     );
 
-    if (currentTable) {
+    if (tableNum) {
+      // 1. Cancelar órdenes activas de la mesa en PostgreSQL
+      fetch("/api/orders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: tableNum,
+          action: "cancel",
+        }),
+      }).catch((err) => console.error("Error cancelando órdenes en BD:", err));
+
+      // 2. Liberar mesa en PostgreSQL
       fetch("/api/tables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tableId: String(currentTable.number),
+          tableId: tableNum,
           status: "free",
           waiter: null,
           guestCount: 1,
@@ -291,6 +336,7 @@ export default function MesasPage() {
     setSelectedWaiter("");
     setGuestCount(1);
     setComment("");
+    setOrderSyncError(null);
   };
 
   const handleAddTable = () => {
@@ -306,15 +352,34 @@ export default function MesasPage() {
     setActiveTableId(newTable.id);
     setNewCapacity(4);
     setShowAddModal(false);
+
+    // Persistir mesa creada en PostgreSQL
+    fetch("/api/tables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tableId: String(newTable.number),
+        capacity: newCapacity,
+        status: "free",
+      }),
+    }).catch((err) => console.error("Error creando mesa en PostgreSQL:", err));
   };
 
   const handleDeleteTable = (id: number) => {
+    const tableToDelete = tables.find((t) => t.id === id);
     const remaining = tables.filter((t) => t.id !== id);
     setTables(remaining);
     if (activeTableId === id) {
       setActiveTableId(remaining[0]?.id ?? 0);
     }
     setShowDeleteConfirm(null);
+
+    // Eliminar mesa en PostgreSQL
+    if (tableToDelete) {
+      fetch(`/api/tables?tableId=${encodeURIComponent(String(tableToDelete.number))}`, {
+        method: "DELETE",
+      }).catch((err) => console.error("Error eliminando mesa en PostgreSQL:", err));
+    }
   };
 
   // Gestión de Modal de Agregar Productos
@@ -348,45 +413,87 @@ export default function MesasPage() {
     });
   };
 
-  const handleSaveProductsToTable = () => {
+  const handleSaveProductsToTable = async () => {
     const entries = Object.entries(productQuantities).filter(([, qty]) => qty > 0);
-    if (entries.length === 0) return;
+    if (entries.length === 0 || !currentTable) return;
 
+    const itemsToPersist: Array<{
+      productId: string | number;
+      name: string;
+      price: number;
+      quantity: number;
+    }> = [];
+
+    entries.forEach(([prodIdStr, qty]) => {
+      const product = availableProducts.find((p) => String(p.id) === String(prodIdStr));
+      if (!product) return;
+      itemsToPersist.push({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: qty,
+      });
+    });
+
+    if (itemsToPersist.length === 0) return;
+
+    // Actualización optimista en React
     setTables((prev) =>
       prev.map((t) => {
         if (t.id !== activeTableId) return t;
 
         const currentOrders = t.orders ? [...t.orders] : [];
 
-        entries.forEach(([prodIdStr, qty]) => {
-          const product = availableProducts.find((p) => String(p.id) === String(prodIdStr));
-          if (!product) return;
-
-          const existingIndex = currentOrders.findIndex((o) => String(o.productId) === String(prodIdStr));
+        itemsToPersist.forEach((item) => {
+          const existingIndex = currentOrders.findIndex(
+            (o) => String(o.productId) === String(item.productId) || o.name === item.name
+          );
           if (existingIndex >= 0) {
             currentOrders[existingIndex] = {
               ...currentOrders[existingIndex],
-              quantity: currentOrders[existingIndex].quantity + qty,
+              quantity: currentOrders[existingIndex].quantity + item.quantity,
             };
           } else {
-            currentOrders.push({
-              productId: product.id,
-              name: product.name,
-              price: product.price,
-              quantity: qty,
-            });
+            currentOrders.push(item);
           }
         });
 
-        return { ...t, orders: currentOrders };
+        return { ...t, orders: currentOrders, status: "occupied" };
       })
     );
 
     setShowAddProductModal(false);
     setProductQuantities({});
+
+    // Persistencia inmediata en PostgreSQL vía POST /api/orders
+    setIsSavingOrder(true);
+    setOrderSyncError(null);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: String(currentTable.number),
+          items: itemsToPersist,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Error al sincronizar productos con la base de datos");
+      }
+    } catch (err: any) {
+      console.error("Error persistiendo orden en BD:", err);
+      setOrderSyncError(err.message || "Error al guardar el consumo en la base de datos");
+    } finally {
+      setIsSavingOrder(false);
+    }
   };
 
-  const handleUpdateOrderItemQuantity = (productId: number | string, newQty: number) => {
+  const handleUpdateOrderItemQuantity = async (productId: number | string, newQty: number) => {
+    if (!currentTable) return;
+
+    // Actualización optimista en React
     setTables((prev) =>
       prev.map((t) => {
         if (t.id !== activeTableId) return t;
@@ -399,6 +506,31 @@ export default function MesasPage() {
         return { ...t, orders: updatedOrders };
       })
     );
+
+    // Persistencia inmediata en PostgreSQL vía PATCH /api/orders
+    setIsSavingOrder(true);
+    setOrderSyncError(null);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: String(currentTable.number),
+          productId: String(productId),
+          quantity: newQty,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Error al actualizar cantidad en la base de datos");
+      }
+    } catch (err: any) {
+      console.error("Error actualizando cantidad en BD:", err);
+      setOrderSyncError(err.message || "Error al actualizar consumo en la base de datos");
+    } finally {
+      setIsSavingOrder(false);
+    }
   };
 
   // Cálculos de cuenta usando utilidades de facturación
@@ -515,6 +647,16 @@ export default function MesasPage() {
         comment: null,
       }),
     }).catch((err) => console.error("Error liberando mesa en PostgreSQL:", err));
+
+    // Marcar órdenes como pagadas en PostgreSQL
+    fetch("/api/orders", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tableId: String(currentTable.number),
+        action: "paid",
+      }),
+    }).catch((err) => console.error("Error marcando órdenes como pagadas en PostgreSQL:", err));
 
     // Liberar la mesa
     setTables((prev) =>
@@ -674,6 +816,9 @@ export default function MesasPage() {
             handleUpdateOrderItemQuantity={handleUpdateOrderItemQuantity}
             openCheckoutModal={() => setShowCheckoutModal(true)}
             onOpenQRModal={() => setShowQRModal(true)}
+            isSavingOrder={isSavingOrder}
+            orderSyncError={orderSyncError}
+            onClearOrderSyncError={() => setOrderSyncError(null)}
           />
         )}
       </div>

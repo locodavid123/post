@@ -12,6 +12,8 @@ import {
   Unlock,
   QrCode,
   AlertTriangle,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { Table, WAITER_OPTIONS } from "./types";
 
@@ -39,6 +41,9 @@ interface TableDetailPaneProps {
   handleUpdateOrderItemQuantity: (productId: number | string, newQty: number) => void;
   openCheckoutModal: () => void;
   onOpenQRModal?: () => void;
+  isSavingOrder?: boolean;
+  orderSyncError?: string | null;
+  onClearOrderSyncError?: () => void;
 }
 
 export default function TableDetailPane({
@@ -57,6 +62,9 @@ export default function TableDetailPane({
   handleUpdateOrderItemQuantity,
   openCheckoutModal,
   onOpenQRModal,
+  isSavingOrder,
+  orderSyncError,
+  onClearOrderSyncError,
 }: TableDetailPaneProps) {
   const [showConfirmRelease, setShowConfirmRelease] = useState(false);
 
@@ -265,13 +273,39 @@ export default function TableDetailPane({
           {/* Listado de Productos en la Cuenta (Consumos) */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between pt-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                Consumos ({totalItemsCount})
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                  Consumos ({totalItemsCount})
+                </span>
+                {isSavingOrder && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-orange-400 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20 animate-pulse">
+                    <RefreshCw size={10} className="animate-spin" /> Guardando...
+                  </span>
+                )}
+              </div>
               <span className="text-xs font-semibold text-orange-400 tabular-nums">
                 {formatCurrency(tableBillSubtotal)}
               </span>
             </div>
+
+            {/* Alerta si falla la conexión con la API */}
+            {orderSyncError && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium animate-fade-in">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertCircle size={14} className="text-rose-400 shrink-0" />
+                  <span className="truncate">{orderSyncError}</span>
+                </div>
+                {onClearOrderSyncError && (
+                  <button
+                    type="button"
+                    onClick={onClearOrderSyncError}
+                    className="text-rose-400 hover:text-white text-xs ml-2 shrink-0 font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
 
             {orders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 px-4 rounded-2xl border border-dashed border-white/[0.08] text-center gap-2 bg-zinc-950/40">

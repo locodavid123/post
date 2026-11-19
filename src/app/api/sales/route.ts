@@ -72,6 +72,32 @@ export async function POST(request: Request) {
       },
     });
 
+    // Si la venta está asociada a una mesa, marcar sus órdenes activas como PAID
+    if (table) {
+      const match = table.match(/\d+/);
+      if (match) {
+        const tableId = match[0];
+        const session = await prisma.tableSession.findUnique({
+          where: {
+            businessId_tableId: {
+              businessId,
+              tableId,
+            },
+          },
+        });
+        if (session) {
+          await prisma.order.updateMany({
+            where: {
+              businessId,
+              tableSessionId: session.id,
+              status: { notIn: ['PAID', 'CANCELLED'] },
+            },
+            data: { status: 'PAID' },
+          });
+        }
+      }
+    }
+
     return NextResponse.json(sale, { status: 201 });
   } catch (err) {
     console.error('Error al registrar venta:', err);

@@ -132,9 +132,71 @@ export async function POST(request: Request) {
       },
     });
 
+    if (status === 'free') {
+      await prisma.order.updateMany({
+        where: {
+          businessId,
+          tableSessionId: tableSession.id,
+          status: { notIn: ['PAID', 'CANCELLED'] },
+        },
+        data: {
+          status: 'CANCELLED',
+        },
+      });
+    }
+
     return NextResponse.json(tableSession);
   } catch (err) {
     console.error('Error al actualizar mesa:', err);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const businessId = await resolveBusinessId(request);
+    const { searchParams } = new URL(request.url);
+    let tableId = searchParams.get('tableId');
+
+    if (!tableId) {
+      try {
+        const body = await request.json();
+        tableId = body.tableId;
+      } catch {}
+    }
+
+    if (!tableId) {
+      return NextResponse.json({ error: 'tableId es requerido' }, { status: 400 });
+    }
+
+    const session = await prisma.tableSession.findUnique({
+      where: {
+        businessId_tableId: {
+          businessId,
+          tableId: String(tableId),
+        },
+      },
+    });
+
+    if (session) {
+      // Cancelar órdenes pendientes asociadas
+      await prisma.order.updateMany({
+        where: {
+          businessId,
+          tableSessionId: session.id,
+          status: { notIn: ['PAID', 'CANCELLED'] },
+        },
+        data: { status: 'CANCELLED' },
+      });
+
+      await prisma.tableSession.delete({
+        where: { id: session.id },
+      });
+    }
+
+    return NextResponse.json({ success: true, message: 'Mesa eliminada con éxito' });
+  } catch (err) {
+    console.error('Error al eliminar mesa:', err);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
