@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
 interface YouTubeSearchResult {
     id: {
@@ -148,15 +149,37 @@ function getDemoResults(query: string) {
 }
 
 export async function GET(request: NextRequest) {
-    // 1. Obtener término de búsqueda
+    // 1. Obtener y normalizar término de búsqueda en minúsculas
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q');
+    const rawQuery = searchParams.get('q') || '';
+    const normalizedQuery = rawQuery.trim().toLowerCase();
 
-    if (!query || !query.trim()) {
-        return NextResponse.json({ error: 'El término de búsqueda es requerido' }, { status: 400 });
+    if (!normalizedQuery || normalizedQuery.length < 3) {
+        return NextResponse.json(
+            { error: 'El término de búsqueda debe tener al menos 3 caracteres' },
+            { status: 400 }
+        );
     }
 
-    // 2. Obtener clave de API de YouTube de las variables de entorno
+    // 2. Verificar caché en PostgreSQL (YoutubeSearchCache)
+    try {
+        const cached = await prisma.youtubeSearchCache.findUnique({
+            where: { query: normalizedQuery },
+        });
+
+        if (cached && new Date(cached.expiresAt) > new Date()) {
+            return NextResponse.json(cached.results, {
+                headers: {
+                    'x-cache': 'HIT',
+                },
+            });
+        }
+    } catch (cacheErr) {
+        console.error('[Jukebox Cache] Error al verificar caché en PostgreSQL:', cacheErr);
+        // Continuamos de forma no bloqueante hacia la API de YouTube
+    }
+
+    // 3. Obtener clave de API de YouTube de las variables de entorno
     const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
     // Si la clave no está configurada o es el valor por defecto de ejemplo,
@@ -168,9 +191,9 @@ export async function GET(request: NextRequest) {
 
     if (isApiKeyMissingOrPlaceholder) {
         console.warn(
-            `[Jukebox] YOUTUBE_API_KEY no configurada. Retornando resultados del catálogo de demostración para "${query}".`
+            `[Jukebox] YOUTUBE_API_KEY no configurada. Retornando resultados del catálogo de demostración para "${normalizedQuery}".`
         );
-        const demoResults = getDemoResults(query);
+        const demoResults = getDemoResults(normalizedQuery);
         return NextResponse.json(demoResults, {
             headers: {
                 'x-jukebox-mode': 'demo-fallback',
@@ -178,9 +201,9 @@ export async function GET(request: NextRequest) {
         });
     }
 
-    // 3. Consulta a la API Oficial de YouTube Data v3
+    // 4. Consulta a la API Oficial de YouTube Data v3
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
-        query.trim()
+        normalizedQuery
     )}&type=video&key=${YOUTUBE_API_KEY}&maxResults=6`;
 
     try {
@@ -194,7 +217,7 @@ export async function GET(request: NextRequest) {
             // Si se agotó la cuota de la API (403), recurrir al catálogo de contingencia
             if (response.status === 403) {
                 console.warn('[Jukebox] Cuota de YouTube API excedida (403). Usando catálogo de contingencia.');
-                return NextResponse.json(getDemoResults(query));
+                return NextResponse.json(getDemoResults(normalizedQuery));
             }
 
             return NextResponse.json({ error: apiError }, { status: response.status || 500 });
@@ -213,10 +236,35 @@ export async function GET(request: NextRequest) {
             url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
         }));
 
-        return NextResponse.json(results);
+        // 5. Guardar en PostgreSQL caché con expiración de 7 días
+        try {
+            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+            const expiresAt = new Date(Date.now() + SEVEN_DAYS_MS);
+
+            await prisma.youtubeSearchCache.upsert({
+                where: { query: normalizedQuery },
+                create: {
+                    query: normalizedQuery,
+                    results: results,
+                    expiresAt,
+                },
+                update: {
+                    results: results,
+                    expiresAt,
+                },
+            });
+        } catch (saveError) {
+            console.error('[Jukebox Cache] Error al guardar resultados en caché de PostgreSQL:', saveError);
+        }
+
+        return NextResponse.json(results, {
+            headers: {
+                'x-cache': 'MISS',
+            },
+        });
     } catch (error) {
         console.error('Error al realizar la búsqueda en YouTube API, usando catálogo fallback:', error);
         // Si hay un error de conexión con Google, entregamos el catálogo de contingencia
-        return NextResponse.json(getDemoResults(query));
+        return NextResponse.json(getDemoResults(normalizedQuery));
     }
 }

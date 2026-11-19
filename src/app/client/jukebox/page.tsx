@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useJukebox } from "@/context/JukeboxContext";
 import {
@@ -50,11 +50,10 @@ export default function JukeboxAdminPage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // Manejo de búsqueda en YouTube
-  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = searchQuery.trim();
-    if (!trimmed) return;
+  // Ejecución de la búsqueda en YouTube (mínimo 3 caracteres)
+  const executeSearch = useCallback(async (queryToSearch: string) => {
+    const trimmed = queryToSearch.trim();
+    if (trimmed.length < 3) return;
 
     setIsSearching(true);
     setSearchError(null);
@@ -78,6 +77,33 @@ export default function JukeboxAdminPage() {
       );
     } finally {
       setIsSearching(false);
+    }
+  }, []);
+
+  // Debounce de 500ms para evitar agotar la cuota de YouTube API
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 3) {
+      if (trimmed.length === 0) {
+        setSearchResults([]);
+        setSearchError(null);
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      executeSearch(trimmed);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, executeSearch]);
+
+  // Manejo de búsqueda manual al presionar Enter o botón de buscar
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = searchQuery.trim();
+    if (trimmed.length >= 3) {
+      executeSearch(trimmed);
     }
   };
 
@@ -208,7 +234,7 @@ export default function JukeboxAdminPage() {
 
             <button
               type="submit"
-              disabled={isSearching || !searchQuery.trim()}
+              disabled={isSearching || searchQuery.trim().length < 3}
               className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-6 py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shrink-0 shadow-lg shadow-orange-500/20 active:scale-95"
             >
               {isSearching ? (

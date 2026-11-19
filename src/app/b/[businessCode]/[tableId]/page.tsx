@@ -73,19 +73,44 @@ export default function UserJukeboxPage({
     }
   };
 
-  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  const executeSearch = useCallback(async (queryToSearch: string) => {
+    const trimmed = queryToSearch.trim();
+    if (trimmed.length < 3) return;
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/jukebox/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`/api/jukebox/search?q=${encodeURIComponent(trimmed)}`);
       const results = await response.json();
       setSearchResults(Array.isArray(results) ? results : []);
     } catch (error) {
       console.error("Error al buscar:", error);
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // Debounce de 500ms para evitar agotar cuota de YouTube API
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 3) {
+      if (trimmed.length === 0) {
+        setSearchResults([]);
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      executeSearch(trimmed);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, executeSearch]);
+
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = searchQuery.trim();
+    if (trimmed.length >= 3) {
+      executeSearch(trimmed);
     }
   };
 
@@ -219,7 +244,7 @@ export default function UserJukeboxPage({
             </div>
             <button
               type="submit"
-              disabled={isLoading || !searchQuery.trim()}
+              disabled={isLoading || searchQuery.trim().length < 3}
               className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition-all shadow-md shadow-orange-500/20 shrink-0"
             >
               {isLoading ? "Buscando..." : "Buscar"}

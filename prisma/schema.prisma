@@ -233,3 +233,15 @@ model SystemConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// --- Caché de Búsquedas de YouTube (Rockola) ---
+
+model YoutubeSearchCache {
+  id        String   @id @default(cuid())
+  query     String   @unique
+  results   Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
