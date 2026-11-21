@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   RefreshCw,
   AlertCircle,
+  Clock,
+  Layers,
 } from "lucide-react";
 import { Table, WAITER_OPTIONS } from "./types";
 
@@ -23,6 +25,29 @@ export function formatCurrency(amount: number): string {
     maximumFractionDigits: 0,
   }).format(Math.round(amount));
   return `$${formatted}`;
+}
+
+export function formatOrderTime(dateStr?: string): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+export function isRecentOrder(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    return diffMs >= 0 && diffMs < 2 * 60 * 1000; // Menos de 2 minutos
+  } catch {
+    return false;
+  }
 }
 
 interface TableDetailPaneProps {
@@ -38,7 +63,12 @@ interface TableDetailPaneProps {
   handleCloseTable: () => void;
   onDeleteClick: (id: number) => void;
   openAddProductsModal: () => void;
-  handleUpdateOrderItemQuantity: (productId: number | string, newQty: number) => void;
+  handleUpdateOrderItemQuantity: (
+    productId: number | string,
+    newQty: number,
+    orderItemId?: string,
+    orderId?: string
+  ) => void;
   openCheckoutModal: () => void;
   onOpenQRModal?: () => void;
   isSavingOrder?: boolean;
@@ -67,9 +97,11 @@ export default function TableDetailPane({
   onClearOrderSyncError,
 }: TableDetailPaneProps) {
   const [showConfirmRelease, setShowConfirmRelease] = useState(false);
+  const [viewMode, setViewMode] = useState<"rondas" | "consolidado">("rondas");
 
   const isOccupied = currentTable.status === "occupied";
   const orders = currentTable.orders || [];
+  const rounds = currentTable.rounds || [];
   const totalItemsCount = orders.reduce((sum, o) => sum + o.quantity, 0);
 
   // Manejo de liberación con confirmación si hay consumos pendientes
@@ -270,7 +302,7 @@ export default function TableDetailPane({
             </div>
           )}
 
-          {/* Listado de Productos en la Cuenta (Consumos) */}
+          {/* Listado de Productos en la Cuenta (Consumos con Historial por Rondas) */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-2">
@@ -283,9 +315,38 @@ export default function TableDetailPane({
                   </span>
                 )}
               </div>
-              <span className="text-xs font-semibold text-orange-400 tabular-nums">
-                {formatCurrency(tableBillSubtotal)}
-              </span>
+
+              {/* Selector de Vista: Por Rondas / Consolidado */}
+              {rounds.length > 0 ? (
+                <div className="flex items-center bg-zinc-950 p-0.5 rounded-lg border border-white/[0.08] text-[10px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("rondas")}
+                    className={`px-2 py-0.5 rounded-md transition ${
+                      viewMode === "rondas"
+                        ? "bg-orange-500 text-white shadow-sm"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    Rondas ({rounds.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("consolidado")}
+                    className={`px-2 py-0.5 rounded-md transition ${
+                      viewMode === "consolidado"
+                        ? "bg-zinc-800 text-white shadow-sm"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    Total
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs font-semibold text-orange-400 tabular-nums">
+                  {formatCurrency(tableBillSubtotal)}
+                </span>
+              )}
             </div>
 
             {/* Alerta si falla la conexión con la API */}
@@ -313,8 +374,117 @@ export default function TableDetailPane({
                 <p className="text-xs text-zinc-400 font-medium">Aún no hay productos en la cuenta.</p>
                 <p className="text-[11px] text-zinc-600">Presiona el botón de abajo para registrar el pedido.</p>
               </div>
+            ) : viewMode === "rondas" && rounds.length > 0 ? (
+              /* VISTA POR RONDAS CON HORA Y ETIQUETA RECIÉN AGREGADO */
+              <div className="flex flex-col gap-2.5 max-h-56 overflow-y-auto pr-1">
+                {rounds.map((round, idx) => {
+                  const isRecent = isRecentOrder(round.createdAt);
+                  const roundTime = formatOrderTime(round.createdAt);
+                  const roundNumber = round.orderNumber || idx + 1;
+                  const roundSubtotal =
+                    round.total ||
+                    round.items.reduce((s, it) => s + it.price * it.quantity, 0);
+
+                  return (
+                    <div
+                      key={round.id || idx}
+                      className="rounded-2xl border border-white/[0.08] bg-zinc-950/80 p-2.5 transition"
+                    >
+                      {/* Encabezado de la Ronda */}
+                      <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.05] mb-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] font-extrabold text-orange-400">
+                            Pedido #{roundNumber}
+                          </span>
+                          {roundTime && (
+                            <span className="text-[10px] text-zinc-400 font-medium">
+                              · {roundTime}
+                            </span>
+                          )}
+                          {isRecent && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/40 animate-pulse">
+                              <Clock size={9} /> Recién agregado
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs font-bold text-zinc-300 tabular-nums">
+                          {formatCurrency(roundSubtotal)}
+                        </span>
+                      </div>
+
+                      {/* Lista de ítems en esta comanda */}
+                      <div className="space-y-1.5">
+                        {round.items.map((item) => (
+                          <div
+                            key={item.id || item.productId}
+                            className="flex items-center justify-between text-xs"
+                          >
+                            <div className="min-w-0 flex-1 pr-2">
+                              <span className="font-semibold text-zinc-200 truncate block">
+                                {item.name}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 tabular-nums">
+                                {formatCurrency(item.price)} × {item.quantity}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 bg-zinc-900 border border-white/[0.06] rounded-lg p-0.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateOrderItemQuantity(
+                                    item.productId,
+                                    item.quantity - 1,
+                                    item.id,
+                                    round.id
+                                  )
+                                }
+                                className={`w-5 h-5 rounded-md transition flex items-center justify-center ${
+                                  item.quantity === 1
+                                    ? "text-rose-500 hover:bg-rose-500/20 hover:text-rose-400"
+                                    : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                                }`}
+                                title={
+                                  item.quantity === 1
+                                    ? "Eliminar de esta comanda"
+                                    : "Restar cantidad"
+                                }
+                              >
+                                {item.quantity === 1 ? (
+                                  <Trash2 size={11} className="text-rose-500" />
+                                ) : (
+                                  <Minus size={10} />
+                                )}
+                              </button>
+                              <span className="text-xs font-black text-white min-w-3 text-center tabular-nums">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateOrderItemQuantity(
+                                    item.productId,
+                                    item.quantity + 1,
+                                    item.id,
+                                    round.id
+                                  )
+                                }
+                                className="w-5 h-5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-white transition flex items-center justify-center"
+                                title="Sumar cantidad a esta comanda"
+                              >
+                                <Plus size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="flex flex-col gap-2 max-h-44 overflow-y-auto pr-1">
+              /* VISTA CONSOLIDADA (PRODUCTOS ACUMULADOS) */
+              <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
                 {orders.map((item) => (
                   <div
                     key={item.productId}
@@ -330,7 +500,6 @@ export default function TableDetailPane({
                       </p>
                     </div>
 
-                    {/* Ajuste 3: Selector de cantidad con ícono Trash2 en rojo cuando la cantidad es 1 */}
                     <div className="flex items-center gap-1 bg-zinc-900 border border-white/[0.08] rounded-lg p-0.5 shrink-0">
                       <button
                         type="button"
@@ -342,7 +511,11 @@ export default function TableDetailPane({
                             ? "text-rose-500 hover:bg-rose-500/20 hover:text-rose-400"
                             : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
                         }`}
-                        title={item.quantity === 1 ? "Eliminar producto de la cuenta" : "Restar cantidad"}
+                        title={
+                          item.quantity === 1
+                            ? "Eliminar producto de la cuenta"
+                            : "Restar cantidad"
+                        }
                       >
                         {item.quantity === 1 ? (
                           <Trash2 size={12} className="text-rose-500" />
@@ -366,6 +539,18 @@ export default function TableDetailPane({
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Total Consolidado de la Mesa siempre visible abajo */}
+            {orders.length > 0 && (
+              <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] px-1">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                  Total General Mesa
+                </span>
+                <span className="text-base font-black text-orange-400 tabular-nums">
+                  {formatCurrency(tableBillSubtotal)}
+                </span>
               </div>
             )}
           </div>

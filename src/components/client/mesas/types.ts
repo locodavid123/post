@@ -1,8 +1,20 @@
 export interface OrderItem {
+  id?: string;
+  orderId?: string;
   productId: number | string;
   name: string;
   price: number;
   quantity: number;
+  createdAt?: string;
+}
+
+export interface OrderRound {
+  id: string;
+  orderNumber?: number;
+  createdAt: string;
+  status?: string;
+  total?: number;
+  items: OrderItem[];
 }
 
 export interface Table {
@@ -14,6 +26,7 @@ export interface Table {
   comment?: string;
   guestCount?: number;
   orders?: OrderItem[];
+  rounds?: OrderRound[];
 }
 
 export interface Product {

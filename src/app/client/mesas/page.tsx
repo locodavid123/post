@@ -5,6 +5,8 @@ import { Plus, LayoutGrid } from "lucide-react";
 import {
   Table,
   Product,
+  OrderItem,
+  OrderRound,
   INITIAL_TABLES,
   TableCard,
   TableDetailPane,
@@ -22,6 +24,61 @@ import {
   calculateTotal,
   validateCashPayment,
 } from "@/utils/billing";
+
+// Helper para parsear comandas y órdenes de la base de datos dividiéndolas en Rondas y Consolidado
+function parseActiveOrders(ordersData: any[]): { activeItems: OrderItem[]; activeRounds: OrderRound[] } {
+  const activeRounds: OrderRound[] = [];
+  const activeItems: OrderItem[] = [];
+
+  if (Array.isArray(ordersData)) {
+    ordersData.forEach((ord: any, index: number) => {
+      const roundItems: OrderItem[] = [];
+      if (Array.isArray(ord.items)) {
+        ord.items.forEach((i: any) => {
+          const pId = i.productId || i.id;
+          const itemObj: OrderItem = {
+            id: i.id,
+            orderId: ord.id,
+            productId: pId,
+            name: i.productName,
+            price: Number(i.unitPrice) || 0,
+            quantity: Number(i.quantity) || 1,
+            createdAt: ord.createdAt,
+          };
+          roundItems.push(itemObj);
+
+          const existing = activeItems.find(
+            (x) => String(x.productId) === String(pId) || x.name === i.productName
+          );
+          if (existing) {
+            existing.quantity += Number(i.quantity) || 1;
+          } else {
+            activeItems.push({
+              id: i.id,
+              productId: pId,
+              name: i.productName,
+              price: Number(i.unitPrice) || 0,
+              quantity: Number(i.quantity) || 1,
+            });
+          }
+        });
+      }
+
+      if (roundItems.length > 0) {
+        activeRounds.push({
+          id: ord.id,
+          orderNumber: ord.orderNumber || index + 1,
+          createdAt: ord.createdAt,
+          status: ord.status,
+          total: ord.total || roundItems.reduce((s, it) => s + it.price * it.quantity, 0),
+          items: roundItems,
+        });
+      }
+    });
+  }
+
+  return { activeItems, activeRounds };
+}
 
 export default function MesasPage() {
   const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
@@ -132,37 +189,8 @@ export default function MesasPage() {
           });
 
           const mappedTables: Table[] = salonTables.map((t: any) => {
-            // Reconstruir consumos activos desde todas las órdenes no pagadas ni canceladas
-            const activeItems: {
-              productId: string | number;
-              name: string;
-              price: number;
-              quantity: number;
-            }[] = [];
-
-            if (Array.isArray(t.orders)) {
-              t.orders.forEach((ord: any) => {
-                if (Array.isArray(ord.items)) {
-                  ord.items.forEach((i: any) => {
-                    const pId = i.productId || i.id;
-                    const existing = activeItems.find(
-                      (x) => String(x.productId) === String(pId) || x.name === i.productName
-                    );
-                    if (existing) {
-                      existing.quantity += Number(i.quantity) || 1;
-                    } else {
-                      activeItems.push({
-                        productId: pId,
-                        name: i.productName,
-                        price: Number(i.unitPrice) || 0,
-                        quantity: Number(i.quantity) || 1,
-                      });
-                    }
-                  });
-                }
-              });
-            }
-
+            // Reconstruir consumos activos y rondas desde todas las órdenes no pagadas ni canceladas
+            const { activeItems, activeRounds } = parseActiveOrders(t.orders);
             const hasActiveOrders = activeItems.length > 0;
             const status = (hasActiveOrders || t.status === "occupied" ? "occupied" : "free") as "free" | "occupied";
 
@@ -175,6 +203,7 @@ export default function MesasPage() {
               guestCount: t.guestCount || undefined,
               comment: t.comment || undefined,
               orders: activeItems,
+              rounds: activeRounds,
             };
           });
 
@@ -303,6 +332,7 @@ export default function MesasPage() {
               guestCount: undefined,
               comment: undefined,
               orders: [],
+              rounds: [],
             }
           : t
       )
@@ -413,6 +443,22 @@ export default function MesasPage() {
     });
   };
 
+  const syncTableWithActiveOrders = (tableNumOrId: number | string, ordersData: any[]) => {
+    const { activeItems, activeRounds } = parseActiveOrders(ordersData);
+    setTables((prev) =>
+      prev.map((t) => {
+        if (t.number !== Number(tableNumOrId) && t.id !== Number(tableNumOrId)) return t;
+        const hasActiveOrders = activeItems.length > 0;
+        return {
+          ...t,
+          status: hasActiveOrders || t.status === "occupied" ? "occupied" : "free",
+          orders: activeItems,
+          rounds: activeRounds,
+        };
+      })
+    );
+  };
+
   const handleSaveProductsToTable = async () => {
     const entries = Object.entries(productQuantities).filter(([, qty]) => qty > 0);
     if (entries.length === 0 || !currentTable) return;
@@ -437,13 +483,24 @@ export default function MesasPage() {
 
     if (itemsToPersist.length === 0) return;
 
-    // Actualización optimista en React
+    // Actualización optimista en React creando una nueva comanda/ronda temporal
+    const tempRoundId = `temp-${Date.now()}`;
+    const newRoundItems: OrderItem[] = itemsToPersist.map((item) => ({
+      id: `item-${Date.now()}-${item.productId}`,
+      orderId: tempRoundId,
+      productId: item.productId,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      createdAt: new Date().toISOString(),
+    }));
+
     setTables((prev) =>
       prev.map((t) => {
         if (t.id !== activeTableId) return t;
 
+        // Actualizar pedidos consolidados
         const currentOrders = t.orders ? [...t.orders] : [];
-
         itemsToPersist.forEach((item) => {
           const existingIndex = currentOrders.findIndex(
             (o) => String(o.productId) === String(item.productId) || o.name === item.name
@@ -458,14 +515,25 @@ export default function MesasPage() {
           }
         });
 
-        return { ...t, orders: currentOrders, status: "occupied" };
+        // Registrar la nueva ronda temporal
+        const currentRounds = t.rounds ? [...t.rounds] : [];
+        currentRounds.push({
+          id: tempRoundId,
+          orderNumber: currentRounds.length + 1,
+          createdAt: new Date().toISOString(),
+          status: "PENDING",
+          total: itemsToPersist.reduce((s, it) => s + it.price * it.quantity, 0),
+          items: newRoundItems,
+        });
+
+        return { ...t, orders: currentOrders, rounds: currentRounds, status: "occupied" };
       })
     );
 
     setShowAddProductModal(false);
     setProductQuantities({});
 
-    // Persistencia inmediata en PostgreSQL vía POST /api/orders
+    // Persistencia inmediata en PostgreSQL vía POST /api/orders (registra comanda con su createdAt)
     setIsSavingOrder(true);
     setOrderSyncError(null);
     try {
@@ -480,30 +548,74 @@ export default function MesasPage() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Error al sincronizar productos con la base de datos");
+        throw new Error(errorData.error || "Error al sincronizar comanda con la base de datos");
+      }
+
+      const data = await res.json();
+      if (data.activeOrders && Array.isArray(data.activeOrders)) {
+        syncTableWithActiveOrders(currentTable.number, data.activeOrders);
       }
     } catch (err: any) {
-      console.error("Error persistiendo orden en BD:", err);
-      setOrderSyncError(err.message || "Error al guardar el consumo en la base de datos");
+      console.error("Error persistiendo comanda en BD:", err);
+      setOrderSyncError(err.message || "Error al guardar el pedido en la base de datos");
     } finally {
       setIsSavingOrder(false);
     }
   };
 
-  const handleUpdateOrderItemQuantity = async (productId: number | string, newQty: number) => {
+  const handleUpdateOrderItemQuantity = async (
+    productId: number | string,
+    newQty: number,
+    orderItemId?: string,
+    orderId?: string
+  ) => {
     if (!currentTable) return;
 
-    // Actualización optimista en React
+    // Actualización optimista en React tanto en rounds como en orders
     setTables((prev) =>
       prev.map((t) => {
         if (t.id !== activeTableId) return t;
 
-        const currentOrders = t.orders || [];
-        const updatedOrders = currentOrders
-          .map((o) => (String(o.productId) === String(productId) ? { ...o, quantity: newQty } : o))
-          .filter((o) => o.quantity > 0);
+        // Actualizar en rounds
+        const currentRounds = (t.rounds || []).map((rnd) => {
+          if (orderId && rnd.id !== orderId) return rnd;
+          const updatedItems = rnd.items
+            .map((it) => {
+              const matches = orderItemId
+                ? it.id === orderItemId
+                : String(it.productId) === String(productId);
+              return matches ? { ...it, quantity: newQty } : it;
+            })
+            .filter((it) => it.quantity > 0);
 
-        return { ...t, orders: updatedOrders };
+          return {
+            ...rnd,
+            items: updatedItems,
+            total: updatedItems.reduce((acc, it) => acc + it.price * it.quantity, 0),
+          };
+        }).filter((rnd) => rnd.items.length > 0);
+
+        // Reconstruir lista consolidada
+        const consolidatedMap: Record<string, OrderItem> = {};
+        currentRounds.forEach((rnd) => {
+          rnd.items.forEach((it) => {
+            const key = String(it.productId || it.name);
+            if (consolidatedMap[key]) {
+              consolidatedMap[key].quantity += it.quantity;
+            } else {
+              consolidatedMap[key] = { ...it };
+            }
+          });
+        });
+
+        const updatedOrders =
+          currentRounds.length > 0
+            ? Object.values(consolidatedMap)
+            : (t.orders || [])
+                .map((o) => (String(o.productId) === String(productId) ? { ...o, quantity: newQty } : o))
+                .filter((o) => o.quantity > 0);
+
+        return { ...t, orders: updatedOrders, rounds: currentRounds };
       })
     );
 
@@ -517,6 +629,8 @@ export default function MesasPage() {
         body: JSON.stringify({
           tableId: String(currentTable.number),
           productId: String(productId),
+          orderItemId,
+          orderId,
           quantity: newQty,
         }),
       });
@@ -524,6 +638,11 @@ export default function MesasPage() {
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Error al actualizar cantidad en la base de datos");
+      }
+
+      const data = await res.json();
+      if (data.activeOrders && Array.isArray(data.activeOrders)) {
+        syncTableWithActiveOrders(currentTable.number, data.activeOrders);
       }
     } catch (err: any) {
       console.error("Error actualizando cantidad en BD:", err);
@@ -669,6 +788,7 @@ export default function MesasPage() {
               guestCount: undefined,
               comment: undefined,
               orders: undefined,
+              rounds: undefined,
             }
           : t
       )
@@ -839,6 +959,8 @@ export default function MesasPage() {
         handleSaveProductsToTable={handleSaveProductsToTable}
         selectedProductsTotalItems={selectedProductsTotalItems}
         selectedProductsTotalPrice={selectedProductsTotalPrice}
+        existingTableOrders={currentTable?.orders}
+        isSaving={isSavingOrder}
       />
 
       {/* ─── MODAL FLOTANTE: CIERRE DE MESA O PAGAR ─── */}

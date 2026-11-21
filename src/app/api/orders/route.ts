@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { resolveBusinessId, getBusinessStatus } from '@/lib/business';
 
-// GET: Obtiene las órdenes activas (no pagadas ni canceladas) del negocio o de una mesa específica
+// GET: Obtiene las órdenes activas (no pagadas ni canceladas) del negocio o de una mesa específica en orden cronológico
 export async function GET(request: Request) {
   try {
     const businessId = await resolveBusinessId(request);
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
         items: true,
         tableSession: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
 
     return NextResponse.json(orders);
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Agrega productos a la orden activa de una mesa
+// POST: Registra una nueva ronda / comanda para la mesa con su propia marca de tiempo (createdAt)
 export async function POST(request: Request) {
   try {
     const businessId = await resolveBusinessId(request);
@@ -65,13 +65,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { tableId, items, productId, name, price, quantity } = body;
+    const { tableId, items, productId, name, price, quantity, notes } = body;
 
     if (!tableId) {
       return NextResponse.json({ error: 'tableId es requerido' }, { status: 400 });
     }
 
-    // Normalizar lista de ítems a agregar
+    // Normalizar lista de ítems a agregar en esta nueva ronda
     const itemsToAdd: Array<{
       productId?: string | number;
       name: string;
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     }
 
     if (itemsToAdd.length === 0) {
-      return NextResponse.json({ error: 'Debe proporcionar al menos un producto' }, { status: 400 });
+      return NextResponse.json({ error: 'Debe proporcionar al menos un producto para la comanda' }, { status: 400 });
     }
 
     // 1. Obtener o crear TableSession (marcar como occupied)
@@ -129,98 +129,67 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Obtener o crear Order activa para esta mesa
-    let activeOrder = await prisma.order.findFirst({
+    // 2. Preparar ítems para la nueva ronda / comanda con verificación de FK de Product
+    const itemsToCreate = await Promise.all(
+      itemsToAdd.map(async (it) => {
+        let validProductId: string | null = null;
+        if (it.productId) {
+          const prodExists = await prisma.product.findUnique({
+            where: { id: String(it.productId) },
+          });
+          if (prodExists) {
+            validProductId = prodExists.id;
+          }
+        }
+        return {
+          productId: validProductId,
+          productName: it.name,
+          unitPrice: it.price,
+          quantity: it.quantity,
+        };
+      })
+    );
+
+    const roundTotal = itemsToAdd.reduce((acc, it) => acc + it.price * it.quantity, 0);
+
+    // 3. Crear una NUEVA Order en PostgreSQL con su propia marca de tiempo (createdAt)
+    const newOrder = await prisma.order.create({
+      data: {
+        businessId,
+        tableSessionId: session.id,
+        status: 'PENDING',
+        total: roundTotal,
+        notes: notes || null,
+        items: {
+          create: itemsToCreate,
+        },
+      },
+      include: { items: true },
+    });
+
+    // 4. Obtener todas las órdenes activas de la mesa en orden cronológico
+    const allActiveOrders = await prisma.order.findMany({
       where: {
         businessId,
         tableSessionId: session.id,
         status: { notIn: ['PAID', 'CANCELLED'] },
       },
       include: { items: true },
-    });
-
-    if (!activeOrder) {
-      activeOrder = await prisma.order.create({
-        data: {
-          businessId,
-          tableSessionId: session.id,
-          status: 'PENDING',
-          total: 0,
-        },
-        include: { items: true },
-      });
-    }
-
-    // 3. Insertar o actualizar OrderItem
-    for (const item of itemsToAdd) {
-      // Buscar si el producto ya existe en la orden activa
-      const existing = activeOrder.items.find(
-        (it) =>
-          (item.productId && it.productId === String(item.productId)) ||
-          it.productName.toLowerCase().trim() === item.name.toLowerCase().trim()
-      );
-
-      if (existing) {
-        await prisma.orderItem.update({
-          where: { id: existing.id },
-          data: {
-            quantity: existing.quantity + item.quantity,
-            unitPrice: item.price,
-          },
-        });
-      } else {
-        // Verificar si el productId existe en la tabla Product
-        let validProductId: string | null = null;
-        if (item.productId) {
-          const prodExists = await prisma.product.findUnique({
-            where: { id: String(item.productId) },
-          });
-          if (prodExists) {
-            validProductId = prodExists.id;
-          }
-        }
-
-        await prisma.orderItem.create({
-          data: {
-            orderId: activeOrder.id,
-            productId: validProductId,
-            productName: item.name,
-            unitPrice: item.price,
-            quantity: item.quantity,
-          },
-        });
-      }
-    }
-
-    // 4. Recalcular total de la orden
-    const allItems = await prisma.orderItem.findMany({
-      where: { orderId: activeOrder.id },
-    });
-    const total = allItems.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
-
-    const updatedOrder = await prisma.order.update({
-      where: { id: activeOrder.id },
-      data: { total },
-      include: { items: true },
+      orderBy: { createdAt: 'asc' },
     });
 
     return NextResponse.json({
       success: true,
-      order: updatedOrder,
-      items: updatedOrder.items.map((i) => ({
-        productId: i.productId || i.id,
-        name: i.productName,
-        price: i.unitPrice,
-        quantity: i.quantity,
-      })),
+      createdOrder: newOrder,
+      activeOrders: allActiveOrders,
     });
   } catch (err) {
-    console.error('Error al agregar productos a la orden:', err);
+    console.error('Error al registrar comanda en la mesa:', err);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
 
-// PATCH: Modifica la cantidad (+ / -) de un producto o lo elimina si quantity <= 0
+// PATCH: Modifica la cantidad (+ / -) de un ítem en una comanda o lo elimina si quantity <= 0
 export async function PATCH(request: Request) {
   try {
     const businessId = await resolveBusinessId(request);
@@ -231,11 +200,11 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { tableId, productId, quantity } = body;
+    const { tableId, productId, orderItemId, quantity } = body;
 
-    if (!tableId || productId === undefined || quantity === undefined) {
+    if (!tableId || (productId === undefined && orderItemId === undefined) || quantity === undefined) {
       return NextResponse.json(
-        { error: 'tableId, productId y quantity son requeridos' },
+        { error: 'tableId, (productId o orderItemId) y quantity son requeridos' },
         { status: 400 }
       );
     }
@@ -253,64 +222,90 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Mesa no encontrada' }, { status: 404 });
     }
 
-    const activeOrder = await prisma.order.findFirst({
+    const newQty = Number(quantity);
+    let affectedOrderId: string | null = null;
+
+    if (orderItemId) {
+      const item = await prisma.orderItem.findUnique({
+        where: { id: String(orderItemId) },
+        include: { order: true },
+      });
+      if (item && item.order.tableSessionId === session.id) {
+        affectedOrderId = item.orderId;
+        if (newQty <= 0) {
+          await prisma.orderItem.delete({ where: { id: item.id } });
+        } else {
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: { quantity: newQty },
+          });
+        }
+      }
+    } else {
+      // Buscar el ítem en las órdenes activas de la mesa (de más reciente a más antigua)
+      const activeOrders = await prisma.order.findMany({
+        where: {
+          businessId,
+          tableSessionId: session.id,
+          status: { notIn: ['PAID', 'CANCELLED'] },
+        },
+        include: { items: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      for (const ord of activeOrders) {
+        const item = ord.items.find(
+          (it) =>
+            it.productId === String(productId) ||
+            it.id === String(productId) ||
+            it.productName.toLowerCase().trim() === String(productId).toLowerCase().trim()
+        );
+        if (item) {
+          affectedOrderId = ord.id;
+          if (newQty <= 0) {
+            await prisma.orderItem.delete({ where: { id: item.id } });
+          } else {
+            await prisma.orderItem.update({
+              where: { id: item.id },
+              data: { quantity: newQty },
+            });
+          }
+          break;
+        }
+      }
+    }
+
+    if (affectedOrderId) {
+      // Recalcular total de la orden afectada
+      const remainingItems = await prisma.orderItem.findMany({
+        where: { orderId: affectedOrderId },
+      });
+      if (remainingItems.length === 0) {
+        // Si no quedan ítems en esa orden, se elimina
+        await prisma.order.delete({ where: { id: affectedOrderId } });
+      } else {
+        const orderTotal = remainingItems.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
+        await prisma.order.update({
+          where: { id: affectedOrderId },
+          data: { total: orderTotal },
+        });
+      }
+    }
+
+    // Retornar todas las órdenes activas actualizadas en orden cronológico
+    const allActiveOrders = await prisma.order.findMany({
       where: {
         businessId,
         tableSessionId: session.id,
         status: { notIn: ['PAID', 'CANCELLED'] },
       },
       include: { items: true },
-    });
-
-    if (!activeOrder) {
-      return NextResponse.json({ error: 'No hay orden activa para esta mesa' }, { status: 404 });
-    }
-
-    // Buscar ítem por productId o id de OrderItem
-    const item = activeOrder.items.find(
-      (it) => it.productId === String(productId) || it.id === String(productId)
-    );
-
-    if (!item) {
-      return NextResponse.json({ error: 'Producto no encontrado en la orden' }, { status: 404 });
-    }
-
-    const newQty = Number(quantity);
-
-    if (newQty <= 0) {
-      // Eliminar el ítem de la orden
-      await prisma.orderItem.delete({
-        where: { id: item.id },
-      });
-    } else {
-      // Actualizar la cantidad
-      await prisma.orderItem.update({
-        where: { id: item.id },
-        data: { quantity: newQty },
-      });
-    }
-
-    // Recalcular total de la orden
-    const remainingItems = await prisma.orderItem.findMany({
-      where: { orderId: activeOrder.id },
-    });
-    const total = remainingItems.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
-
-    const updatedOrder = await prisma.order.update({
-      where: { id: activeOrder.id },
-      data: { total },
-      include: { items: true },
+      orderBy: { createdAt: 'asc' },
     });
 
     return NextResponse.json({
       success: true,
-      order: updatedOrder,
-      items: updatedOrder.items.map((i) => ({
-        productId: i.productId || i.id,
-        name: i.productName,
-        price: i.unitPrice,
-        quantity: i.quantity,
-      })),
+      activeOrders: allActiveOrders,
     });
   } catch (err) {
     console.error('Error al actualizar cantidad del ítem:', err);
@@ -324,6 +319,7 @@ export async function DELETE(request: Request) {
     const businessId = await resolveBusinessId(request);
     let tableId: string | null = null;
     let productId: string | null = null;
+    let orderItemId: string | null = null;
     let action: string | null = null;
 
     // Intentar leer desde query o body
@@ -331,6 +327,7 @@ export async function DELETE(request: Request) {
       const url = new URL(request.url);
       tableId = url.searchParams.get('tableId');
       productId = url.searchParams.get('productId');
+      orderItemId = url.searchParams.get('orderItemId');
       action = url.searchParams.get('action');
     } catch {}
 
@@ -339,6 +336,7 @@ export async function DELETE(request: Request) {
         const body = await request.json();
         tableId = body.tableId;
         productId = body.productId;
+        orderItemId = body.orderItemId;
         action = body.action;
       } catch {}
     }
@@ -374,7 +372,7 @@ export async function DELETE(request: Request) {
     }
 
     // Si la acción es cancelar / liberar sin cobrar
-    if (action === 'cancel' || action === 'free' || (!productId && !action)) {
+    if (action === 'cancel' || action === 'free' || (!productId && !orderItemId && !action)) {
       await prisma.order.updateMany({
         where: {
           businessId,
@@ -386,39 +384,72 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: true, message: 'Órdenes canceladas y mesa liberada' });
     }
 
-    // Si se especifica un productId puntual a eliminar
-    if (productId) {
-      const activeOrder = await prisma.order.findFirst({
+    // Si se especifica un orderItemId o productId puntual a eliminar
+    let targetOrderId: string | null = null;
+    if (orderItemId) {
+      const item = await prisma.orderItem.findUnique({
+        where: { id: String(orderItemId) },
+        include: { order: true },
+      });
+      if (item && item.order.tableSessionId === session.id) {
+        targetOrderId = item.orderId;
+        await prisma.orderItem.delete({ where: { id: item.id } });
+      }
+    } else if (productId) {
+      const activeOrders = await prisma.order.findMany({
         where: {
           businessId,
           tableSessionId: session.id,
           status: { notIn: ['PAID', 'CANCELLED'] },
         },
         include: { items: true },
+        orderBy: { createdAt: 'desc' },
       });
 
-      if (activeOrder) {
-        const item = activeOrder.items.find(
-          (it) => it.productId === String(productId) || it.id === String(productId)
+      for (const ord of activeOrders) {
+        const item = ord.items.find(
+          (it) =>
+            it.productId === String(productId) ||
+            it.id === String(productId) ||
+            it.productName.toLowerCase().trim() === String(productId).toLowerCase().trim()
         );
         if (item) {
+          targetOrderId = ord.id;
           await prisma.orderItem.delete({ where: { id: item.id } });
-
-          const remainingItems = await prisma.orderItem.findMany({
-            where: { orderId: activeOrder.id },
-          });
-          const total = remainingItems.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
-
-          await prisma.order.update({
-            where: { id: activeOrder.id },
-            data: { total },
-          });
+          break;
         }
       }
-      return NextResponse.json({ success: true, message: 'Ítem eliminado de la orden' });
     }
 
-    return NextResponse.json({ success: true });
+    if (targetOrderId) {
+      const remainingItems = await prisma.orderItem.findMany({
+        where: { orderId: targetOrderId },
+      });
+      if (remainingItems.length === 0) {
+        await prisma.order.delete({ where: { id: targetOrderId } });
+      } else {
+        const total = remainingItems.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
+        await prisma.order.update({
+          where: { id: targetOrderId },
+          data: { total },
+        });
+      }
+    }
+
+    const allActiveOrders = await prisma.order.findMany({
+      where: {
+        businessId,
+        tableSessionId: session.id,
+        status: { notIn: ['PAID', 'CANCELLED'] },
+      },
+      include: { items: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return NextResponse.json({
+      success: true,
+      activeOrders: allActiveOrders,
+    });
   } catch (err) {
     console.error('Error al procesar eliminación en orden:', err);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });

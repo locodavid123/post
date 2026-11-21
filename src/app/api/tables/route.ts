@@ -16,6 +16,7 @@ export async function GET(request: Request) {
         orders: {
           where: { status: { notIn: ['PAID', 'CANCELLED'] } },
           include: { items: true },
+          orderBy: { createdAt: 'asc' },
         },
       },
     });
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
           orders: {
             where: { status: { notIn: ['PAID', 'CANCELLED'] } },
             include: { items: true },
+            orderBy: { createdAt: 'asc' },
           },
         },
       });
